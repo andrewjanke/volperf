@@ -5,10 +5,10 @@ OBJS = $(PROGS:=.o) $(HEADERS:.h=.o)
 CC=cc
 
 OPTIONS = -g3 -fullwarn -O3
-INCLUDES = -I/usr/local/include
+INCLUDES = -I/usr/local/include -I/usr/local/mni/include
 CFLAGS = $(OPTIONS) $(INCLUDES) `gsl-config --cflags`
 
-LDINCLUDES = -L/usr/local/lib32
+LDINCLUDES = -L/usr/local/lib32 -L/usr/local/mni/lib32
 LDLIBS = -lvolume_io -lminc -lnetcdf -lm
 LDOPTS = $(LDINCLUDES) $(LDLIBS) `gsl-config --libs`
 
