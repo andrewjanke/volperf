@@ -1,0 +1,15 @@
+MINC Vector File
+% an example MINC Vector input file
+
+MINC_Vector_Type = Normal_MINC_Vector;
+MINC_Vector = 
+1.0
+1.111
+895
+825
+861
+877
+549
+923
+805
+901;
