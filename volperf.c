@@ -31,6 +31,8 @@
 #include "gamma_fit.h"
 
 #define DEFAULT_BOOL -1
+#define DEFAULT_DOUBLE -1
+#define DEFAULT_INT -1
 
 /* function prototypes */
 void     do_math(void *caller_data, long num_voxels, int input_num_buffers,
@@ -39,7 +41,8 @@ void     do_math(void *caller_data, long num_voxels, int input_num_buffers,
 
 /************************************************************/
 char    *SHIFT_names[] = { "shift_none", "shift_aif", "shift_aif_exact", "shift_conc" };
-char    *BAT_names[] = { "bat_none", "bat_gamma", "bat_slope", "bat_cutoff" };
+char    *BAT_names[] =
+   { "bat_none", "bat_gamma", "bat_slope", "bat_cutoff", "bat_min_dist" };
 char    *outfile_basic[] = { "CBF", "CBV", "MTT", NULL };
 char    *outfile_chi[] = { "chi", NULL };
 char    *outfile_gamma[] = { "bat", "fac", "alpha", "beta", NULL };
@@ -67,15 +70,18 @@ SHIFT_enum shift_type = SHIFT_NONE;
 
 int      aif_bat_gamma = FALSE;
 int      aif_bat_slope = FALSE;
-double   aif_bat_cutoff = -1;
+double   aif_bat_cutoff = DEFAULT_DOUBLE;
+double   aif_bat_min_dist = DEFAULT_DOUBLE;
 int      vox_bat_gamma = FALSE;
 int      vox_bat_slope = FALSE;
-double   vox_bat_cutoff = -1;
+double   vox_bat_cutoff = DEFAULT_DOUBLE;
+double   vox_bat_min_dist = DEFAULT_DOUBLE;
 int      bat_gamma = FALSE;
 int      bat_slope = FALSE;
-double   bat_cutoff = -1;
-double   tr = -1;
-double   te = -1;
+double   bat_cutoff = DEFAULT_DOUBLE;
+double   bat_min_dist = DEFAULT_DOUBLE;
+double   tr = DEFAULT_DOUBLE;
+double   te = DEFAULT_DOUBLE;
 int      filter = FALSE;
 double   svd_tol = 0.2;
 double   svd_oi = -1;
@@ -88,16 +94,6 @@ int      output_gamma = FALSE;
 int      output_arrival = FALSE;
 int      output_delay = FALSE;
 int      output_residue = FALSE;
-
-//Math_Data md = { 
-//   NULL, 0, 0, 0,
-//   NULL,
-//   NULL, NULL, NULL, NULL, 0.2,
-//   NULL, NULL, NULL, NULL, FALSE,
-//   SHIFT_NONE, BAT_NONE, 0.0,
-//   -1, -1, FALSE, 0.4, 0.0, 1.0, 0.2,
-//   FALSE,  FALSE, FALSE, FALSE, FALSE
-//   }
 
 /************************************************************/
 
@@ -177,27 +173,37 @@ ArgvInfo argTable[] = {
 /*
  *	methods for calculating arrival time for both aif and voxel
  */
-   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nBAT/delay types:"},
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nAIF BAT/delay types (pick one):"},
    {"-aif_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_gamma,
-    "The aif arrival is the bat of the gamma variate function (Default)"},
+    "The intial point of the gamma variate function (Default)"},
    {"-aif_bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_slope,
-    "The aif arrival is the slope of the concentration profile"},
+    "The slope of the concentration profile"},
    {"-aif_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&aif_bat_cutoff,
-    "The aif arrival is a percentage of the peak concentration"},
-   {"-vox_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_gamma,
-    "The voxel arrival is the bat of the gamma variate function (Default)"},
-   {"-vox_bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_slope,
-    "The voxel arrival is the slope of the concentration profile"},
-   {"-vox_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&vox_bat_cutoff,
-    "The voxel arrival is a percentage of the peak concentration"},
+    "A percentage of the peak concentration"},
+   {"-aif_bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&aif_bat_min_dist,
+    "The point closest to the intersection of the baseline and <scaled> vertical line from the peak"},
 
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nVoxel BAT/delay types (pick one):"},
+   {"-vox_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_gamma,
+    "The initial point of the gamma variate function (Default)"},
+   {"-vox_bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_slope,
+    "The slope of the concentration profile"},
+   {"-vox_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&vox_bat_cutoff,
+    "A percentage of the peak concentration"},
+   {"-aif_bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&aif_bat_min_dist,
+    "The point closest to the intersection of the baseline and <scaled> vertical line from the peak"},
+
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nBoth BAT/delay types (pick one):"},
    {"-bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_gamma,
     "Synonym for '-aif_bat_gamma -vox_bat_gamma' (Default)"},
    {"-bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_slope,
     "Synonym for '-aif_bat_slope -vox_bat_slope'"},
    {"-bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&bat_cutoff,
     "Synonym for '-aif_bat_cutoff -vox_bat_cutoff'"},
+   {"-bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&bat_min_dist,
+    "Synonym for '-aif_bat_min_dist -vox_bat_min_dist'"},
 
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nPerfusion parameters:"},
    {"-tr", ARGV_FLOAT, (char *)1, (char *)&tr,
     "TR of the perfusion experiment (default: read this from the input files)"},
    {"-te", ARGV_FLOAT, (char *)1, (char *)&te,
@@ -233,7 +239,6 @@ int main(int argc, char *argv[])
    Loop_Options *loop_opts;
    double   fac;
    size_t   i, j;
-   BAT_enum aif_bat_type = BAT_GAMMA;
    int      n_bat, n_aif_bat, n_vox_bat;
    Math_Data *md;
 
@@ -256,7 +261,7 @@ int main(int argc, char *argv[])
 /* 
  *	check for an input TR and TE 
  */
-   if(tr == -1 || te == -1){
+   if(tr == DEFAULT_DOUBLE || te == DEFAULT_DOUBLE){
       fprintf(stdout, "%s: You need to input a tr and a te\n", argv[0]);
       fprintf(stdout, "%s -help  for more info\n\n", argv[0]);
       exit(EXIT_FAILURE);
@@ -301,27 +306,28 @@ int main(int argc, char *argv[])
    md->conc_fit = conc_fit;
 
 /*
- *	shift type
- */
-   md->shift_type = shift_type;
-
-/*
  *	check the arrival time measures
  */
-   n_bat = (bat_gamma + bat_slope + (bat_cutoff > 0));
+   n_bat =
+      (bat_gamma + bat_slope + (bat_cutoff != DEFAULT_DOUBLE) +
+       (bat_min_dist != DEFAULT_DOUBLE));
    if(n_bat > 1){
       fprintf(stdout,
               "%s: Only one arrival method required for aif and voxel\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
-   n_aif_bat = (aif_bat_gamma + aif_bat_slope + (aif_bat_cutoff > 0));
+   n_aif_bat =
+      (aif_bat_gamma + aif_bat_slope + (aif_bat_cutoff != DEFAULT_DOUBLE) +
+       (aif_bat_min_dist != DEFAULT_DOUBLE));
    if(n_aif_bat > 1){
       fprintf(stdout, "%s: Only one arrival method required for aif\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
-   n_vox_bat = (vox_bat_gamma + vox_bat_slope + (vox_bat_cutoff > 0));
+   n_vox_bat =
+      (vox_bat_gamma + vox_bat_slope + (vox_bat_cutoff != DEFAULT_DOUBLE) +
+       (aif_bat_min_dist != DEFAULT_DOUBLE));
    if(n_vox_bat > 1){
       fprintf(stdout, "%s: Only one arrival method required for voxel\n", argv[0]);
       exit(EXIT_FAILURE);
@@ -340,6 +346,10 @@ int main(int argc, char *argv[])
       exit(EXIT_FAILURE);
       }
 
+/*
+ *	shift type
+ */
+   md->shift_type = shift_type;
    if((md->shift_type != SHIFT_NONE && md->shift_type != SHIFT_CIRC)
       && (n_bat + n_aif_bat == 0)){
       fprintf(stdout, "%s: Must specify an arrival marker\n", argv[0]);
@@ -347,48 +357,70 @@ int main(int argc, char *argv[])
       exit(EXIT_FAILURE);
       }
 
-   md->vox_bat_cutoff = vox_bat_cutoff;
    if(bat_gamma){
-      aif_bat_type = BAT_GAMMA;
-      md->vox_bat_type = BAT_GAMMA;
+      md->aif->bat.type = md->vox_bat.type = BAT_GAMMA;
       }
    else if(bat_slope){
-      aif_bat_type = BAT_SLOPE;
-      md->vox_bat_type = BAT_SLOPE;
+      md->aif->bat.type = md->vox_bat.type = BAT_SLOPE;
       }
-   else if(bat_cutoff > 0.0){
-      aif_bat_type = BAT_CUTOFF;
-      md->vox_bat_type = BAT_CUTOFF;
-      aif_bat_cutoff = bat_cutoff;
-      md->vox_bat_cutoff = bat_cutoff;
+   else if(bat_cutoff != DEFAULT_DOUBLE){
+      md->aif->bat.type = md->vox_bat.type = BAT_CUTOFF;
+      md->aif->bat.cutoff = md->vox_bat.cutoff = bat_cutoff;
+      }
+   else if(bat_min_dist != DEFAULT_DOUBLE){
+      md->aif->bat.type = md->vox_bat.type = BAT_MIN_DIST;
+      md->aif->bat.min_dist = md->vox_bat.min_dist = bat_min_dist;
       }
    else {
-      md->vox_bat_type = BAT_GAMMA;
+      md->aif->bat.type = md->vox_bat.type = BAT_GAMMA;
       }
 
    if(aif_bat_gamma){
-      aif_bat_type = BAT_GAMMA;
+      md->aif->bat.type = BAT_GAMMA;
       }
    else if(aif_bat_slope){
-      aif_bat_type = BAT_SLOPE;
+      md->aif->bat.type = BAT_SLOPE;
       }
-   else if(aif_bat_cutoff > 0.0){
-      aif_bat_type = BAT_CUTOFF;
+   else if(aif_bat_cutoff != DEFAULT_DOUBLE){
+      md->aif->bat.type = BAT_CUTOFF;
+      }
+   else if(aif_bat_min_dist != DEFAULT_DOUBLE){
+      md->aif->bat.type = BAT_MIN_DIST;
       }
 
    if(vox_bat_gamma){
-      md->vox_bat_type = BAT_GAMMA;
+      md->vox_bat.type = BAT_GAMMA;
       }
    else if(vox_bat_slope){
-      md->vox_bat_type = BAT_SLOPE;
+      md->vox_bat.type = BAT_SLOPE;
       }
-   else if(vox_bat_cutoff > 0.0){
-      md->vox_bat_type = BAT_CUTOFF;
-      md->vox_bat_cutoff = vox_bat_cutoff;
+   else if(vox_bat_cutoff != DEFAULT_DOUBLE){
+      md->vox_bat.type = BAT_CUTOFF;
+      md->vox_bat.cutoff = vox_bat_cutoff;
+      }
+   else if(vox_bat_min_dist != DEFAULT_DOUBLE){
+      md->vox_bat.type = BAT_MIN_DIST;
+      md->vox_bat.min_dist = vox_bat_min_dist;
       }
 
-   if((aif_bat_cutoff > 1.0) || (md->vox_bat_cutoff > 1.0)){
-      fprintf(stdout, "%s: Arrival cutoffs must be between 0 and 1\n", argv[0]);
+   /* check ranges */
+   if(md->aif->bat.type == BAT_CUTOFF &&
+      (md->aif->bat.cutoff > 1.0 || md->aif->bat.cutoff < 0.0)){
+      fprintf(stdout, "%s: AIF arrival cutoff must be between 0 and 1\n", argv[0]);
+      exit(EXIT_FAILURE);
+      }
+   if(md->vox_bat.type == BAT_CUTOFF &&
+      (md->vox_bat.cutoff > 1.0 || md->vox_bat.cutoff < 0.0)){
+      fprintf(stdout, "%s: Voxel arrival cutoffs must be between 0 and 1\n", argv[0]);
+      exit(EXIT_FAILURE);
+      }
+   if(md->aif->bat.type == BAT_MIN_DIST && (md->aif->bat.min_dist <= 0.0)){
+      fprintf(stdout, "%s: AIF arrival scale factor should be greater than 0\n", argv[0]);
+      exit(EXIT_FAILURE);
+      }
+   if(md->vox_bat.type == BAT_MIN_DIST && (md->vox_bat.min_dist <= 0.0)){
+      fprintf(stdout,
+              "%s: Voxel arrival scale factor should be greater than 0\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
@@ -419,7 +451,7 @@ int main(int argc, char *argv[])
       }
    if(tstart < -0.5){
       TimeCurveAreaAif(md->aif->signal, md->aif->conc, md->tr, md->te,
-                       &(md->aif->area), md->aif->gparm, &(md->Nstart), &(md->Nrest));
+                       &(md->aif->area), md->aif->bat.gparm, &(md->Nstart), &(md->Nrest));
       md->aif->baseline = 0.0;
       }
    else {
@@ -431,14 +463,12 @@ int main(int argc, char *argv[])
       }
    md->aif->baseline /= md->Nstart;
    SignalToConc(md->aif->signal, md->aif->conc, md->aif->baseline, md->te);
-   md->aif->arrival_time = bolus_arrival_time(md->aif->conc, md->tr,
-                                              md->aif->gparm, aif_bat_type,
-                                              aif_bat_cutoff);
+   md->aif->arrival_time = bolus_arrival_time(md->aif->conc, md->tr, &(md->aif->bat));
    if(tstart > -0.5){
-      TimeCurveArea(md->aif->conc, md->tr, &(md->aif->area), md->aif->gparm);
+      TimeCurveArea(md->aif->conc, md->tr, &(md->aif->area), md->aif->bat.gparm);
       }
    md->aif->arrival_time -= md->Nstart * md->tr;
-   md->aif->gparm[GAM_BAT] -= md->Nstart * md->tr;
+   md->aif->bat.gparm[GAM_BAT] -= md->Nstart * md->tr;
 
    /* set up infiles */
    n_infiles = argc - 2;
@@ -561,41 +591,56 @@ int main(int argc, char *argv[])
    /* a bit of pretty output */
    if(verbose){
       fprintf(stdout, "====Parameters======\n");
-      fprintf(stdout, "| aif->baseline:     %g\n", md->aif->baseline);
-      fprintf(stdout, "| aif->area:         %g\n", md->aif->area);
-      fprintf(stdout, "| aif->arrival_time: %g\n", md->aif->arrival_time);
+      fprintf(stdout, "| aif->baseline:      %g\n", md->aif->baseline);
+      fprintf(stdout, "|    ->area:          %g\n", md->aif->area);
+      fprintf(stdout, "|    ->bat.type       %s\n", BAT_names[md->aif->bat.type]);
+      fprintf(stdout, "|         .cutoff:    %g\n", md->aif->bat.cutoff);
+      fprintf(stdout, "|         .min_dist:  %g\n", md->aif->bat.min_dist);
+      fprintf(stdout, "|    ->arrival_time:  %g\n", md->aif->arrival_time);
 
-      fprintf(stdout, "| aif->signal           ");
+      fprintf(stdout, "|    ->signal[%d]     ", md->aif->signal->size);
       for(i = 0; i < md->aif->signal->size; i++){
          if((i % 10) == 0 && i != 0){
-            fprintf(stdout, "\n|                    ");
+            fprintf(stdout, "\n|                     ");
             }
          fprintf(stdout, "%6.3f ", gsl_vector_get(md->aif->signal, i));
          }
       fprintf(stdout, "\n");
 
-      if(md->mask){
-         fprintf(stdout, "| mask:              %s\n", mask_fname);
+      fprintf(stdout, "|    ->conc[%d]      ", md->aif->conc->size);
+      for(i = 0; i < md->aif->conc->size; i++){
+         if((i % 10) == 0 && i != 0){
+            fprintf(stdout, "\n|                    ");
+            }
+         fprintf(stdout, "%6.3f ", gsl_vector_get(md->aif->conc, i));
          }
-      fprintf(stdout, "| Nstart:            %d\n", md->Nstart);
-      fprintf(stdout, "| Nrest:             %d\n", md->Nrest);
-      fprintf(stdout, "| svd_tol:           %g\n", md->svd_tol);
-      fprintf(stdout, "| svd_oi:            %g\n", md->svd_oi);
-      fprintf(stdout, "| svd_type:          %d\n", md->svd_type);
+      fprintf(stdout, "\n");
 
-      fprintf(stdout, "| shift_type:        %s\n", SHIFT_names[md->shift_type]);
+      if(md->mask){
+         fprintf(stdout, "| mask:               %s\n", mask_fname);
+         }
+      fprintf(stdout, "| Nstart:             %d\n", md->Nstart);
+      fprintf(stdout, "| Nrest:              %d\n", md->Nrest);
+      fprintf(stdout, "| svd_tol:            %g\n", md->svd_tol);
+      fprintf(stdout, "| svd_oi:             %g\n", md->svd_oi);
+      fprintf(stdout, "| svd_type:           %d\n", md->svd_type);
 
-      fprintf(stdout, "| TR:                %g\n", md->tr);
-      fprintf(stdout, "| TE:                %g\n", md->te);
-      fprintf(stdout, "| filter:            %s\n", (md->filter) ? "TRUE" : "FALSE");
-      fprintf(stdout, "| cutoff:            %g\n", md->cutoff);
+      fprintf(stdout, "| shift_type:         %s\n", SHIFT_names[md->shift_type]);
+      fprintf(stdout, "| voxel bat.type      %s\n", BAT_names[md->vox_bat.type]);
+      fprintf(stdout, "|          .cutoff:   %g\n", md->vox_bat.cutoff);
+      fprintf(stdout, "|          .min_dist: %g\n", md->vox_bat.min_dist);
+
+      fprintf(stdout, "| TR:                 %g\n", md->tr);
+      fprintf(stdout, "| TE:                 %g\n", md->te);
+      fprintf(stdout, "| filter:             %s\n", (md->filter) ? "TRUE" : "FALSE");
+      fprintf(stdout, "| cutoff:             %g\n", md->cutoff);
       }
 
 /*
  *	Create the aif matrix
  */
    if(md->aif_fit){
-      eval_gamma(md->aif->conc, md->aif->gparm, md->tr);
+      eval_gamma(md->aif->conc, md->aif->bat.gparm, md->tr);
       }
    else {
       for(i = 0; i < md->Nrest; i++){
@@ -605,7 +650,6 @@ int main(int argc, char *argv[])
 
    switch (md->shift_type){
    case SHIFT_NONE:
-
    case SHIFT_CONC:
       md->length = md->Nrest;
       md->svd_u = gsl_matrix_alloc(md->length, md->length);
@@ -654,7 +698,7 @@ int main(int argc, char *argv[])
       break;
 
    default:
-      fprintf(stderr, "ERROR - shift method not implemented\n");
+      fprintf(stderr, "ERROR - shift type [%d] not implemented\n", md->shift_type);
       exit(EXIT_FAILURE);
       }
 
@@ -795,8 +839,8 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
  */
          if((md->conc_fit) || (md->output_gamma)
             || (((md->output_arrival) || (md->shift_type != SHIFT_NONE))
-                && (md->vox_bat_type == BAT_GAMMA))){
-            TimeCurveArea(md->conc, md->tr, &(md->area), md->gparm);
+                && (md->vox_bat.type == BAT_GAMMA))){
+            TimeCurveArea(md->conc, md->tr, &(md->area), md->vox_bat.gparm);
             }
          if(md->conc_fit){
             eval_gamma(md->conc, md->gparm, md->tr);
@@ -812,8 +856,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             break;
 
          case SHIFT_AIF:
-            arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
-                                         md->vox_bat_type, md->vox_bat_cutoff);
+            arrival = bolus_arrival_time(md->conc, md->tr, &(md->vox_bat));
             delay = arrival - md->aif->arrival_time;
             delayi = rint(delay / md->tr);
             length = md->conc->size - delayi;
@@ -827,8 +870,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             break;
 
          case SHIFT_AIF_EXACT:
-            arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
-                                         md->vox_bat_type, md->vox_bat_cutoff);
+            arrival = bolus_arrival_time(md->conc, md->tr, &(md->vox_bat));
             delay = arrival - md->aif->arrival_time;
             delayi = rint(delay / md->tr);
             length = md->conc->size - delayi;
@@ -838,14 +880,13 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             md->residue = gsl_vector_alloc(conc->size);
 
             aif = gsl_vector_alloc(length);
-            md->aif->gparm[GAM_BAT] += delay;
-            eval_gamma(aif, md->aif->gparm, md->tr);
-            md->aif->gparm[GAM_BAT] -= delay;
+            md->aif->bat.gparm[GAM_BAT] += delay;
+            eval_gamma(aif, md->aif->bat.gparm, md->tr);
+            md->aif->bat.gparm[GAM_BAT] -= delay;
             break;
 
          case SHIFT_CONC:
-            arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
-                                         md->vox_bat_type, md->vox_bat_cutoff);
+            arrival = bolus_arrival_time(md->conc, md->tr, &(md->vox_bat));
             delay = arrival - md->aif->arrival_time;
             delayi = rint(delay / md->tr);
             length = md->conc->size - delayi;
