@@ -18,11 +18,11 @@
 
 /************************************************************/
 
-typedef enum { SHIFT_NONE = 0, SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_CIRC } SHIFT_enum;
+typedef enum { SHIFT_NONE =
+      0, SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_CIRC } SHIFT_enum;
 typedef enum { BAT_NONE = 0, BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF } BAT_enum;
 typedef enum { GAM_BAT, GAM_FAC, GAM_ALPHA, GAM_BETA, GAM_NUM } GAMMA_enum;
 typedef enum { SVD_TOL, SVD_OI } SVD_enum;
-
 
 typedef enum { OUT_CBF, OUT_CBV, OUT_MTT, NUM_OUT_BASIC } OUT_BASIC_ENUM;
 typedef enum { OUT_CHI, NUM_OUT_CHI } OUT_CHI_ENUM;
@@ -44,6 +44,7 @@ typedef struct {
 
 /* Structure for math information */
 typedef struct {
+
    /* arterial input function */
    Art_IF  *aif;
    int      aif_fit;
@@ -51,11 +52,18 @@ typedef struct {
    size_t   Nrest;
    size_t   length;
 
+   /* number of input data files */
+   size_t   n_datafiles;
+
+   /* mask information */
+   int      mask;
+   int      mask_idx;
+
    /* kernel to filter with */
    gsl_vector *kernel;
 
    /* SVD fit bits */
-   SVD_enum  svd_type;
+   SVD_enum svd_type;
    gsl_matrix *svd_u;
    gsl_matrix *svd_v;
    gsl_vector *svd_s;
@@ -126,10 +134,10 @@ double   bolus_arrival_time(gsl_vector * conc, double tr,
 
 /* calculate the AIF matrix */
 void     CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
-void     CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
+void     CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart,
+                           int Nrest);
 
 /* calculate svd oscillation index (as a double) */
-double svd_oscillation_index(gsl_vector *v);
-
+double   svd_oscillation_index(gsl_vector * v);
 
 #endif
