@@ -269,7 +269,7 @@ void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
     gsl_matrix_set(mwork, i, GAM_FAC, 1.0);
     gsl_matrix_set(mwork, i, GAM_ALPHA, -t);
     gsl_matrix_set(mwork, i, GAM_BETA, log(t));
-     }
+              }
 */
 
 /*
@@ -282,7 +282,7 @@ void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
  */
 /*
   gamma[GAM_FAC] = exp(gamma[GAM_FAC]);
-   }
+            }
 */
 
 /************************************************************/
@@ -383,6 +383,11 @@ double bolus_arrival_time(gsl_vector * conc, double tr,
 
 /************************************************************/
 
+/*
+ *  CalcAifMatrix -
+ *
+ *    Set up the AIF matrix for a standard deconvolution (Ostergaard 1996)
+ */
 void CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest)
 {
    double   temp;
@@ -411,4 +416,64 @@ void CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int N
  *	do the last element in the corner 
  */
    gsl_matrix_set(m, Nrest - 1, 0, fac * gsl_vector_get(v, Nstart + Nrest - 1));
+   }
+
+/************************************************************/
+
+/*
+ *  CalcCircAifMatrix -
+ *
+ *    Set up the AIF matrix for circular deconvolution (Wu 2003)
+ */
+void CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest)
+{
+   double   temp;
+   size_t   i, j;
+
+/* 
+ *	Ca(t0)
+ */
+   for(j = 0; j < 2 * Nrest; j++){
+      gsl_matrix_set(m, j, j, fac * gsl_vector_get(v, Nstart));
+      }
+
+/* 
+ *	Ca(t1) ... Ca(tn-2) 
+ */
+   for(i = 1; i < Nrest - 1; i++){
+      temp = fac * (gsl_vector_get(v, Nstart + (i - 1))
+                    + (4.0 * gsl_vector_get(v, Nstart + i))
+                    + (gsl_vector_get(v, Nstart + (i + 1)))) / 6.0;
+      for(j = 0; j < 2 * Nrest; j++){
+         gsl_matrix_set(m, j, (j - i + 2 * Nrest) % (2 * Nrest), temp);
+         }
+      }
+
+/* 
+ *	Ca(tn-1)
+ */
+   for(j = 0; j < 2 * Nrest; j++){
+      gsl_matrix_set(m, j, (j + Nrest + 1) % (2 * Nrest),
+                     fac * gsl_vector_get(v, Nstart));
+      }
+   }
+
+/************************************************************/
+
+/*
+ * svd_oscillation_index -
+ *
+ *     calculate svd oscillation index (as a double) 
+ */
+double svd_oscillation_index(gsl_vector * v)
+{
+   int      i;
+   double   oi = 0.0;
+
+   for(i = 1; i < v->size - 1; i++){
+      oi +=
+         fabs(gsl_vector_get(v, i - 1) - 2 * gsl_vector_get(v, i) +
+              gsl_vector_get(v, i + 1));
+      }
+   return (oi / (v->size * gsl_vector_max(v)));
    }
