@@ -38,7 +38,6 @@ typedef enum { OUT_DELAY, NUM_OUT_DELAY } OUT_DELAY_ENUM;
 typedef struct {
    BAT_enum type;
    double   cutoff;
-   double   min_dist;
 
    double   gparm[GAM_NUM];
    } Bat_info;
@@ -150,4 +149,9 @@ void     CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstar
 /* calculate svd oscillation index (as a double) */
 double   svd_oscillation_index(gsl_vector * v);
 
+/* calculate the area under a time curve */
+void     TimeCurveArea(gsl_vector * conc, double tr, double *area, double *gparm);
+void     TimeCurveAreaAif(gsl_vector * aif, gsl_vector * conc, double tr,
+                          double te, double *area, double *gparm, int *start, int *rest);
+                          
 #endif

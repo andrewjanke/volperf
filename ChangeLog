@@ -1,0 +1,5 @@
+2004-06-03 Andrew L. Janke  <rotor@cmr.uq.edu.au>
+
+   * Added autoconfiguration 
+   * Added epm header
+   * Changed to GPL due to use of GSL

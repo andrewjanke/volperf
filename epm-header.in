@@ -1,0 +1,10 @@
+%product volperf
+%copyright 2000-2004 Andrew Janke & Mark Griffin
+%vendor McConnell Brain Imaging Centre
+%packager Andrew Janke <rotor@cmr.uq.edu.au>
+%license COPYING
+%readme README
+%description MINC Bolus Delay Perfusion Map Calculation Package
+%version @VERSION@
+%requires netcdf
+%requires minc
