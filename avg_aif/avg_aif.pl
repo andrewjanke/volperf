@@ -28,7 +28,7 @@ my(@args, @infiles, $outfile);
 chomp($me = `basename $0`);
 %opt = ('clobber' => 0,
         'verbose' => 0,
-        'nsamples' => 100,
+        'nsamples' => 50,
         'mask' => '',
         );
 
@@ -77,6 +77,7 @@ my($c, @totals);
 
 print STDOUT "Getting Samples:";
 @args = ('mincsample', '-clobber',
+         '-mask', $opt{'mask'},
          '-random_samples', $opt{'nsamples'},
          '-ascii',
          @infiles);
