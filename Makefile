@@ -1,5 +1,5 @@
 PROGS = volperf
-HEADERS = perf_util.o minc_vector_io.o 
+HEADERS = perf_util.h gamma_fit.h minc_vector_io.h 
 OBJS = $(PROGS:=.o) $(HEADERS:.h=.o)
 
 CC=cc
