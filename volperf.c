@@ -38,11 +38,8 @@ void     do_math(void *caller_data, long num_voxels, int input_num_buffers,
                  int output_vector_length, double *output_data[], Loop_Info * loop_info);
 
 /************************************************************/
-
-char    *SHIFT_names[] = { "shift_aif", "shift_aif_exact", "shift_conc",
-   "shift_none", NULL
-   };
-char    *BAT_names[] = { "bat_gamma", "bat_slope", "bat_cutoff", NULL };
+char    *SHIFT_names[] = { "shift_none", "shift_aif", "shift_aif_exact", "shift_conc" };
+char    *BAT_names[] = { "bat_none", "bat_gamma", "bat_slope", "bat_cutoff" };
 char    *outfile_basic[] = { "CBF", "CBV", "MTT", NULL };
 char    *outfile_chi[] = { "chi", NULL };
 char    *outfile_gamma[] = { "bat", "fac", "alpha", "beta", NULL };
@@ -64,22 +61,23 @@ nc_type  dtype = NC_UNSPECIFIED;
 char    *aif_file = NULL;
 int      aif_fit = FALSE;
 int      conc_fit = FALSE;
-int      shift_aif = FALSE;
-int      shift_aif_exact = FALSE;
-int      shift_conc = FALSE;
-int      bat_gamma = FALSE;
-int      bat_slope = FALSE;
-double   bat_cutoff = -1;
+
+SHIFT_enum shift_type = SHIFT_NONE;
+
 int      aif_bat_gamma = FALSE;
 int      aif_bat_slope = FALSE;
 double   aif_bat_cutoff = -1;
 int      vox_bat_gamma = FALSE;
 int      vox_bat_slope = FALSE;
 double   vox_bat_cutoff = -1;
+int      bat_gamma = FALSE;
+int      bat_slope = FALSE;
+double   bat_cutoff = -1;
 double   tr = -1;
 double   te = -1;
 int      filter = FALSE;
 double   svd_tol = 0.2;
+double   svd_oi = -1;
 double   cutoff = 0.4;
 double   normalization = 1.0;
 double   dosage = 0.2;
@@ -89,6 +87,16 @@ int      output_gamma = FALSE;
 int      output_arrival = FALSE;
 int      output_delay = FALSE;
 int      output_residue = FALSE;
+
+//Math_Data md = { 
+//   NULL, 0, 0, 0,
+//   NULL,
+//   NULL, NULL, NULL, NULL, 0.2,
+//   NULL, NULL, NULL, NULL, FALSE,
+//   SHIFT_NONE, BAT_NONE, 0.0,
+//   -1, -1, FALSE, 0.4, 0.0, 1.0, 0.2,
+//   FALSE,  FALSE, FALSE, FALSE, FALSE
+//   }
 
 /************************************************************/
 
@@ -149,43 +157,42 @@ ArgvInfo argTable[] = {
 /*
  *	shifting concentration profiles to remove delay
  */
-   {"-shift_aif", ARGV_CONSTANT, (char *)TRUE, (char *)&shift_aif,
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nShift types:"},
+   {"-shift_none", ARGV_CONSTANT, (char *)SHIFT_NONE, (char *)&shift_type,
+    "Don't do any shifting (Default)"},
+   {"-shift_aif", ARGV_CONSTANT, (char *)SHIFT_AIF, (char *)&shift_type,
     "Shift the aif to the voxel concentration (resolution of tr)"},
-   {"-shift_aif_exact", ARGV_CONSTANT, (char *)TRUE,
-    (char *)&shift_aif_exact,
+   {"-shift_aif_exact", ARGV_CONSTANT, (char *)SHIFT_AIF_EXACT,
+    (char *)&shift_type,
     "Shift the aif to the voxel concentration (exact resolution)"},
-   {"-shift_conc", ARGV_CONSTANT, (char *)TRUE, (char *)&shift_conc,
+   {"-shift_conc", ARGV_CONSTANT, (char *)SHIFT_CONC, (char *)&shift_type,
     "Shift the concentration to the aif"},
+   {"-shift_circ", ARGV_CONSTANT, (char *)SHIFT_CIRC, (char *)&shift_type,
+    "Correct for delay (shift) using Circular deconvolution"},
 
 /*
  *	methods for calculating arrival time for both aif and voxel
  */
-   {"-bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_gamma,
-    "The tracer arrival is the bat of the gamma variate function"},
-   {"-bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_slope,
-    "The tracer arrival is the slope of the concentration profile"},
-   {"-bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&bat_cutoff,
-    "The tracer arrival is a percentage of the peak concentration"},
-
-/*
- *	methods for calculating arrival time for just the aif
- */
+   {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nBAT/delay types:"},
    {"-aif_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_gamma,
-    "The aif arrival is the bat of the gamma variate function"},
+    "The aif arrival is the bat of the gamma variate function (Default)"},
    {"-aif_bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_slope,
     "The aif arrival is the slope of the concentration profile"},
    {"-aif_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&aif_bat_cutoff,
     "The aif arrival is a percentage of the peak concentration"},
-
-/*
- *	methods for calculating arrival time for just the voxel
- */
    {"-vox_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_gamma,
-    "The voxel arrival is the bat of the gamma variate function"},
+    "The voxel arrival is the bat of the gamma variate function (Default)"},
    {"-vox_bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_slope,
     "The voxel arrival is the slope of the concentration profile"},
    {"-vox_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&vox_bat_cutoff,
     "The voxel arrival is a percentage of the peak concentration"},
+
+   {"-bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_gamma,
+    "Synonym for '-aif_bat_gamma -vox_bat_gamma' (Default)"},
+   {"-bat_slope", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_slope,
+    "Synonym for '-aif_bat_slope -vox_bat_slope'"},
+   {"-bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&bat_cutoff,
+    "Synonym for '-aif_bat_cutoff -vox_bat_cutoff'"},
 
    {"-tr", ARGV_FLOAT, (char *)1, (char *)&tr,
     "TR of the perfusion experiment (default: read this from the input files)"},
@@ -193,8 +200,11 @@ ArgvInfo argTable[] = {
     "TE of the perfusion experiment (default: read this from the input files)"},
    {"-filter", ARGV_CONSTANT, (char *)TRUE, (char *)&filter,
     "Filter the data before fitting (low-pass gaussian)"},
-   {"-tolerance", ARGV_FLOAT, (char *)1, (char *)&svd_tol,
+   {"-svd_tolerance", ARGV_FLOAT, (char *)1, (char *)&svd_tol,
     "[0..1] Tolerance to use for the SVD fitting"},
+   {"-svd_oi", ARGV_FLOAT, (char *)1, (char *)&svd_oi,
+    "[0..4] Oscillation index for SVD fitting (Suggest 0.09 -- Ona Wu MRM 2003)"},
+
    {"-cutoff", ARGV_FLOAT, (char *)1, (char *)&cutoff,
     "[0..1] Minimum signal change required at a voxel for a perfusion calculation"},
    {"-normalization", ARGV_FLOAT, (char *)1, (char *)&normalization,
@@ -218,7 +228,7 @@ int main(int argc, char *argv[])
    Loop_Options *loop_opts;
    double   fac;
    size_t   i, j;
-   BAT_enum aif_bat_type;
+   BAT_enum aif_bat_type = BAT_GAMMA;
    int      n_bat, n_aif_bat, n_vox_bat;
    Math_Data *md;
 
@@ -249,11 +259,32 @@ int main(int argc, char *argv[])
    md->tr = tr;
    md->te = te;
 
+   /* check input parameters */
+
+   /* SVD options */
+   md->svd_oi = svd_oi;
+   md->svd_tol = svd_tol;
+   if(md->svd_oi != -1){
+      if(md->svd_oi > 4 || md->svd_oi < 0){
+         fprintf(stderr, "%s: -svd_oi must be in the range 0..4\n\n", argv[0]);
+         exit(EXIT_FAILURE);
+         }
+
+      md->svd_type = SVD_OI;
+      }
+   else {
+      if(md->svd_tol > 1 || md->svd_tol < 0){
+         fprintf(stderr, "%s: -svd_tol must be in the range 0..1\n\n", argv[0]);
+         exit(EXIT_FAILURE);
+         }
+      md->svd_type = SVD_TOL;
+      }
+
 /* 
  *	Initialise and read in the AIF 
  */
    if(access(aif_file, F_OK) != 0){
-      fprintf(stdout, "%s: Couldn't find Arterial input file: %s\n", argv[0], aif_file);
+      fprintf(stderr, "%s: Couldn't find Arterial input file: %s\n", argv[0], aif_file);
       exit(EXIT_FAILURE);
       }
    md->aif = (Art_IF *) malloc(sizeof(Art_IF));
@@ -261,24 +292,13 @@ int main(int argc, char *argv[])
       fprintf(stdout, "%s: Died whilst reading in AIF file: %s\n", argv[0], aif_file);
       exit(EXIT_FAILURE);
       }
-   md->aif_fit = aif_fit || shift_aif_exact;
+   md->aif_fit = aif_fit || shift_type == SHIFT_AIF_EXACT;
    md->conc_fit = conc_fit;
 
 /*
- *	check the tracer delay shifts
+ *	shift type
  */
-   if(shift_aif + shift_aif_exact + shift_conc > 1){
-      fprintf(stdout, "%s: You can only define one type of shift command\n", argv[0]);
-      exit(EXIT_FAILURE);
-      }
-   if(shift_aif)
-      md->shift_type = SHIFT_AIF;
-   else if(shift_aif_exact)
-      md->shift_type = SHIFT_AIF_EXACT;
-   else if(shift_conc)
-      md->shift_type = SHIFT_CONC;
-   else
-      md->shift_type = SHIFT_NONE;
+   md->shift_type = shift_type;
 
 /*
  *	check the arrival time measures
@@ -315,7 +335,8 @@ int main(int argc, char *argv[])
       exit(EXIT_FAILURE);
       }
 
-   if((md->shift_type != SHIFT_NONE) && (n_bat + n_aif_bat == 0)){
+   if((md->shift_type != SHIFT_NONE && md->shift_type != SHIFT_CIRC)
+      && (n_bat + n_aif_bat == 0)){
       fprintf(stdout, "%s: Must specify an arrival marker\n", argv[0]);
       fprintf(stdout, "  order to account for tracer delay\n");
       exit(EXIT_FAILURE);
@@ -337,7 +358,6 @@ int main(int argc, char *argv[])
       md->vox_bat_cutoff = bat_cutoff;
       }
    else {
-      aif_bat_type = BAT_GAMMA;
       md->vox_bat_type = BAT_GAMMA;
       }
 
@@ -377,7 +397,6 @@ int main(int argc, char *argv[])
 /* 
  *	Set up math data structure 
  */
-   md->svd_tol = svd_tol;
    md->filter = filter;
    md->cutoff = cutoff;
    md->normalization = normalization;
@@ -540,6 +559,8 @@ int main(int argc, char *argv[])
       fprintf(stdout, "| Nstart:            %d\n", md->Nstart);
       fprintf(stdout, "| Nrest:             %d\n", md->Nrest);
       fprintf(stdout, "| svd_tol:           %g\n", md->svd_tol);
+      fprintf(stdout, "| svd_oi:            %g\n", md->svd_oi);
+      fprintf(stdout, "| svd_type:          %d\n", md->svd_type);
 
       fprintf(stdout, "| shift_type:        %s\n", SHIFT_names[md->shift_type]);
 
@@ -561,23 +582,60 @@ int main(int argc, char *argv[])
          }
       }
 
-   if((md->shift_type == SHIFT_CONC || md->shift_type == SHIFT_NONE)){
-      md->svd_u = gsl_matrix_alloc(md->Nrest, md->Nrest);
-      md->svd_v = gsl_matrix_alloc(md->Nrest, md->Nrest);
-      md->svd_s = gsl_vector_alloc(md->Nrest);
-      md->svd_work = gsl_vector_alloc(md->Nrest);
-      CalcAifMatrix(md->aif->conc, md->svd_u, md->tr, 0, md->Nrest);
+   switch (md->shift_type){
+   case SHIFT_NONE:
+
+   case SHIFT_CONC:
+      md->length = md->Nrest;
+      md->svd_u = gsl_matrix_alloc(md->length, md->length);
+      md->svd_v = gsl_matrix_alloc(md->length, md->length);
+      md->svd_s = gsl_vector_alloc(md->length);
+      md->svd_s_cp = md->svd_s;
+      md->svd_work = gsl_vector_alloc(md->length);
+      CalcAifMatrix(md->aif->conc, md->svd_u, md->tr, 0, md->length);
       gsl_linalg_SV_decomp(md->svd_u, md->svd_v, md->svd_s, md->svd_work);
       fac = md->svd_tol * gsl_vector_max(md->svd_s);
-      for(i = 0; i < md->Nrest; i++){
+      for(i = 0; i < md->length; i++){
          if(gsl_vector_get(md->svd_s, i) < fac){
             gsl_vector_set(md->svd_s, i, 0.0);
             }
          }
-      md->residue = gsl_vector_alloc(md->Nrest);
+      md->residue = gsl_vector_alloc(md->length);
+      md->signal = gsl_vector_alloc(md->aif->signal->size);
+      md->conc = gsl_vector_alloc(md->length);
+      break;
+
+   case SHIFT_AIF:
+   case SHIFT_AIF_EXACT:
+      md->length = md->Nrest;
+      md->signal = gsl_vector_alloc(md->aif->signal->size);
+      md->conc = gsl_vector_alloc(md->length);
+      break;
+
+   case SHIFT_CIRC:
+      md->length = 2 * md->Nrest;
+      md->svd_u = gsl_matrix_alloc(md->length, md->length);
+      md->svd_v = gsl_matrix_alloc(md->length, md->length);
+      md->svd_s = gsl_vector_alloc(md->length);
+      md->svd_s_cp = gsl_vector_alloc(md->length);
+      md->svd_work = gsl_vector_alloc(md->length);
+      CalcCircAifMatrix(md->aif->conc, md->svd_u, md->tr, 0, md->Nrest);
+      gsl_linalg_SV_decomp(md->svd_u, md->svd_v, md->svd_s, md->svd_work);
+      fac = md->svd_tol * gsl_vector_max(md->svd_s);
+      for(i = 0; i < md->length; i++){
+         if(gsl_vector_get(md->svd_s, i) < fac){
+            gsl_vector_set(md->svd_s, i, 0.0);
+            }
+         }
+      md->residue = gsl_vector_alloc(md->length);
+      md->signal = gsl_vector_alloc(md->aif->signal->size);
+      md->conc = gsl_vector_alloc(md->length);
+      break;
+
+   default:
+      fprintf(stderr, "ERROR - shift method not implemented\n");
+      exit(EXIT_FAILURE);
       }
-   md->signal = gsl_vector_alloc(md->aif->signal->size);
-   md->conc = gsl_vector_alloc(md->Nrest);
 
 /* 
  *	Set up and run the Voxel Loop 
@@ -595,10 +653,14 @@ int main(int argc, char *argv[])
 /* 
  *	be tidy 
  */
-   if((md->shift_type == SHIFT_CONC) || (md->shift_type == SHIFT_NONE)){
+   if((md->shift_type == SHIFT_CONC) || (md->shift_type == SHIFT_NONE)
+      || md->shift_type == SHIFT_CIRC){
       gsl_matrix_free(md->svd_u);
       gsl_matrix_free(md->svd_v);
       gsl_vector_free(md->svd_s);
+      if(md->shift_type == SHIFT_CIRC){
+         gsl_vector_free(md->svd_s_cp);
+         }
       gsl_vector_free(md->svd_work);
       gsl_vector_free(md->conc);
       gsl_vector_free(md->residue);
@@ -634,7 +696,8 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
    long     ivox, Nivox;
    double   raw_baseline, raw_avg;
    double   arrival, delay, temp;
-   int      length, delayi;
+   int      length, delayi, residue_shift;
+   int      svd_s_len;
 
    /* shut the compiler up */
    (void)loop_info;
@@ -709,28 +772,53 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             }
 
 /*
- *	determine tracer delay
+ *	shift the concentration and aif as required  
+ *    -- yes, there is some duplication here, but it's easier to read
  */
-         if(md->shift_type != SHIFT_NONE){
+         switch (md->shift_type){
+         case SHIFT_NONE:
+            conc = md->conc;
+            break;
+
+         case SHIFT_AIF:
             arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
                                          md->vox_bat_type, md->vox_bat_cutoff);
             delay = arrival - md->aif->arrival_time;
             delayi = rint(delay / md->tr);
             length = md->conc->size - delayi;
-            }
 
-/*
- *	shift the concentration as required
- */
-         switch (md->shift_type){
-         case SHIFT_AIF:
-         case SHIFT_AIF_EXACT:
             view = gsl_vector_subvector(md->conc, delayi, length);
             conc = &(view.vector);
             md->residue = gsl_vector_alloc(conc->size);
+
+            view = gsl_vector_subvector(md->aif->conc, md->aif->arrival_time, length);
+            aif = &(view.vector);
+            break;
+
+         case SHIFT_AIF_EXACT:
+            arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
+                                         md->vox_bat_type, md->vox_bat_cutoff);
+            delay = arrival - md->aif->arrival_time;
+            delayi = rint(delay / md->tr);
+            length = md->conc->size - delayi;
+
+            view = gsl_vector_subvector(md->conc, delayi, length);
+            conc = &(view.vector);
+            md->residue = gsl_vector_alloc(conc->size);
+
+            aif = gsl_vector_alloc(length);
+            md->aif->gparm[GAM_BAT] += delay;
+            eval_gamma(aif, md->aif->gparm, md->tr);
+            md->aif->gparm[GAM_BAT] -= delay;
             break;
 
          case SHIFT_CONC:
+            arrival = bolus_arrival_time(md->conc, md->tr, md->gparm,
+                                         md->vox_bat_type, md->vox_bat_cutoff);
+            delay = arrival - md->aif->arrival_time;
+            delayi = rint(delay / md->tr);
+            length = md->conc->size - delayi;
+
             if((delayi > 0) && (delayi < length)){
                for(i = 0; i < length; i++){
                   gsl_vector_set(md->conc, i, gsl_vector_get(md->conc, i + delayi));
@@ -740,35 +828,9 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
                   }
                }
             conc = md->conc;
-            break;
 
-         case SHIFT_NONE:
+         case SHIFT_CIRC:
             conc = md->conc;
-            break;
-
-         default:
-            fprintf(stderr, "ERROR - shift method not implemented\n");
-            exit(EXIT_FAILURE);
-            }
-
-/*
- *	shift the aif as required
- */
-         switch (md->shift_type){
-         case SHIFT_AIF:
-            view = gsl_vector_subvector(md->aif->conc, md->aif->arrival_time, length);
-            aif = &(view.vector);
-            break;
-
-         case SHIFT_AIF_EXACT:
-            aif = gsl_vector_alloc(length);
-            md->aif->gparm[GAM_BAT] += delay;
-            eval_gamma(aif, md->aif->gparm, md->tr);
-            md->aif->gparm[GAM_BAT] -= delay;
-            break;
-
-         case SHIFT_CONC:
-         case SHIFT_NONE:
             break;
 
          default:
@@ -797,7 +859,27 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
  *	use SVD to evaluate the residue function from the AIF and 
  *	concentration time-curve  
  */
-         gsl_linalg_SV_solve(md->svd_u, md->svd_v, md->svd_s, conc, md->residue);
+         switch (md->svd_type){
+         case SVD_TOL:
+            gsl_linalg_SV_solve(md->svd_u, md->svd_v, md->svd_s, conc, md->residue);
+            break;
+
+         case SVD_OI:
+            gsl_vector_set_zero(md->svd_s_cp);
+            svd_s_len = -1;
+            do {
+               svd_s_len++;
+               gsl_vector_set(md->svd_s_cp, svd_s_len,
+                              gsl_vector_get(md->svd_s, svd_s_len));
+               gsl_linalg_SV_solve(md->svd_u, md->svd_v, md->svd_s_cp, conc, md->residue);
+               } while((svd_s_len < md->length - 1)
+                    && (svd_oscillation_index(md->residue) < md->svd_oi));
+            break;
+
+         default:
+            fprintf(stderr, "ERROR - SVD type is undefined (%d)\n", md->svd_type);
+            exit(EXIT_FAILURE);
+            }
 
 /* 
  *	output CBF, CBV and MTT
@@ -852,6 +934,18 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             n_outputs += NUM_OUT_GAMMA;
             }
 
+         if(md->shift_type == SHIFT_CIRC){
+            residue_shift = gsl_vector_max_index(md->residue);
+            delay = residue_shift * md->tr;
+            if(delay > md->length / 2.0){
+               delay -= md->length;
+               }
+            arrival = delay + md->aif->arrival_time;
+            }
+         else {
+            residue_shift = 0;
+            }
+
 /*
  *	output arrival
  */
@@ -874,7 +968,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
          if(md->output_residue){
             for(i = 0; i < md->Nrest; i++){
                output_data[n_outputs + i][ivox]
-                  = gsl_vector_get(md->residue, i);
+                  = gsl_vector_get(md->residue, (i + residue_shift) % md->length);
                }
             }
 

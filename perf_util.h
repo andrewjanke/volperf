@@ -18,32 +18,17 @@
 
 /************************************************************/
 
-typedef enum { SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_NONE,
-   SHIFT_NUM
-   } SHIFT_enum;
-extern char *SHIFT_names[];
-
-typedef enum { BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF, BAT_NUM } BAT_enum;
-extern char *BAT_names[];
-
+typedef enum { SHIFT_NONE = 0, SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_CIRC } SHIFT_enum;
+typedef enum { BAT_NONE = 0, BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF } BAT_enum;
 typedef enum { GAM_BAT, GAM_FAC, GAM_ALPHA, GAM_BETA, GAM_NUM } GAMMA_enum;
+typedef enum { SVD_TOL, SVD_OI } SVD_enum;
+
 
 typedef enum { OUT_CBF, OUT_CBV, OUT_MTT, NUM_OUT_BASIC } OUT_BASIC_ENUM;
-extern char *outfile_basic[];
-
 typedef enum { OUT_CHI, NUM_OUT_CHI } OUT_CHI_ENUM;
-extern char *outfile_chi[];
-
 typedef enum { OUT_BAT, OUT_FAC, OUT_ALPHA, OUT_BETA, NUM_OUT_GAMMA } OUT_GAMMA_ENUM;
-extern char *outfile_gamma[];
-
 typedef enum { OUT_ARRIVAL, NUM_OUT_ARRIVAL } OUT_ARRIVAL_ENUM;
-extern char *outfile_arrival[];
-
 typedef enum { OUT_DELAY, NUM_OUT_DELAY } OUT_DELAY_ENUM;
-extern char *outfile_delay[];
-
-extern char outfile_residue[];
 
 /************************************************************/
 
@@ -64,16 +49,20 @@ typedef struct {
    int      aif_fit;
    size_t   Nstart;
    size_t   Nrest;
+   size_t   length;
 
    /* kernel to filter with */
    gsl_vector *kernel;
 
    /* SVD fit bits */
+   SVD_enum  svd_type;
    gsl_matrix *svd_u;
    gsl_matrix *svd_v;
    gsl_vector *svd_s;
+   gsl_vector *svd_s_cp;
    gsl_vector *svd_work;
    double   svd_tol;
+   double   svd_oi;
 
    /* voxel concentration */
    gsl_vector *signal;
@@ -137,5 +126,10 @@ double   bolus_arrival_time(gsl_vector * conc, double tr,
 
 /* calculate the AIF matrix */
 void     CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
+void     CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
+
+/* calculate svd oscillation index (as a double) */
+double svd_oscillation_index(gsl_vector *v);
+
 
 #endif
