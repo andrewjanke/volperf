@@ -269,7 +269,7 @@ void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
     gsl_matrix_set(mwork, i, GAM_FAC, 1.0);
     gsl_matrix_set(mwork, i, GAM_ALPHA, -t);
     gsl_matrix_set(mwork, i, GAM_BETA, log(t));
-              }
+                          }
 */
 
 /*
@@ -282,7 +282,7 @@ void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
  */
 /*
   gamma[GAM_FAC] = exp(gamma[GAM_FAC]);
-            }
+                        }
 */
 
 /************************************************************/
@@ -330,16 +330,20 @@ double vector_sum(gsl_vector * v, int a, int b)
 
 /************************************************************/
 
-double bolus_arrival_time(gsl_vector * conc, double tr,
-                          double *gparm, BAT_enum bat_method, double cutoff)
+double bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b)
 {
    int      peakx, batx, i;
    double   peaky, baty, tempy, m;
    double   arrival;
 
-   switch (bat_method){
+   int      mina, minb, tmp;
+   double   vala = DBL_MAX, valb = DBL_MAX;
+   double   euc;
+   double   m1, m2, c1, c2;
+
+   switch (b->type){
    case BAT_GAMMA:
-      arrival = gparm[GAM_BAT];
+      arrival = b->gparm[GAM_BAT];
       break;
 
    case BAT_SLOPE:
@@ -361,16 +365,64 @@ double bolus_arrival_time(gsl_vector * conc, double tr,
    case BAT_CUTOFF:
       i = gsl_vector_max_index(conc);
       peaky = gsl_vector_get(conc, i);
-      while((i > 0) && (gsl_vector_get(conc, i) > cutoff * peaky)){
+      while((i > 0) && (gsl_vector_get(conc, i) > b->cutoff * peaky)){
          i--;
          }
       if(i > 0){
-         arrival = tr * (i + ((cutoff * peaky) - gsl_vector_get(conc, i))
+         arrival = tr * (i + ((b->cutoff * peaky) - gsl_vector_get(conc, i))
                          / (gsl_vector_get(conc, i + 1) - gsl_vector_get(conc, i)));
          }
       else {
          arrival = 0.0;
          }
+      break;
+
+   case BAT_MIN_DIST:
+
+      peakx = gsl_vector_max_index(conc);
+
+      /* find the two minimum points */
+      for(i = 0; i < peakx; i++){
+
+         /* calc euc distance */
+         euc = sqrt(SQR((peakx - i) * tr) + SQR(b->min_dist * gsl_vector_get(conc, i)));
+
+         /* don't even ask what's happening here */
+         if(euc < vala){
+            valb = vala;
+            minb = mina;
+
+            vala = euc;
+            mina = i;
+            }
+         else if(euc < valb){
+            valb = euc;
+            minb = i;
+            }
+         }
+      /* make sure the points are ordered */
+      if(mina > minb){
+         tmp = minb;
+         minb = mina;
+         mina = tmp;
+         }
+
+      /* find the closest point on the line mina:minb to 0 */
+      m1 = b->min_dist * (gsl_vector_get(conc, mina) - gsl_vector_get(conc, minb))
+         / (mina - minb);
+      c1 = (b->min_dist * gsl_vector_get(conc, mina)) - m1 * mina;
+      m2 = -1 / m1;
+      c2 = -m1 * peakx;
+      arrival = (c2 - c1) / (m1 - m2);
+
+      /* check that we aren't out of bounds */
+      if(arrival < mina){
+         arrival = mina;
+         }
+      else if(arrival > minb){
+         arrival = minb;
+         }
+      arrival *= tr;
       break;
 
    default:

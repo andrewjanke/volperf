@@ -16,11 +16,13 @@
 
 #include <volume_io.h>
 
+#define SQR(x) ((x) * (x))
+
 /************************************************************/
 
-typedef enum { SHIFT_NONE =
-      0, SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_CIRC } SHIFT_enum;
-typedef enum { BAT_NONE = 0, BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF } BAT_enum;
+typedef enum { SHIFT_NONE = 0, SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_CIRC
+   } SHIFT_enum;
+typedef enum { BAT_NONE = 0, BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF, BAT_MIN_DIST } BAT_enum;
 typedef enum { GAM_BAT, GAM_FAC, GAM_ALPHA, GAM_BETA, GAM_NUM } GAMMA_enum;
 typedef enum { SVD_TOL, SVD_OI } SVD_enum;
 
@@ -32,14 +34,24 @@ typedef enum { OUT_DELAY, NUM_OUT_DELAY } OUT_DELAY_ENUM;
 
 /************************************************************/
 
+/* Structure for BAT information */
+typedef struct {
+   BAT_enum type;
+   double   cutoff;
+   double   min_dist;
+
+   double   gparm[GAM_NUM];
+   } Bat_info;
+
 /* Structure for Art_IF information */
 typedef struct {
    gsl_vector *signal;
    gsl_vector *conc;
-   double   gparm[GAM_NUM];
    double   baseline;
    double   area;
    double   arrival_time;
+
+   Bat_info bat;
    } Art_IF;
 
 /* Structure for math information */
@@ -81,8 +93,7 @@ typedef struct {
 
    /* tracer delay */
    SHIFT_enum shift_type;
-   BAT_enum vox_bat_type;
-   double   vox_bat_cutoff;
+   Bat_info vox_bat;
 
    double   tr;
    double   te;
@@ -129,8 +140,7 @@ void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
 */
 double   vector_distance(gsl_vector * a, gsl_vector * b);
 double   vector_sum(gsl_vector * v, int a, int b);
-double   bolus_arrival_time(gsl_vector * conc, double tr,
-                            double *gparm, BAT_enum bat_method, double cutoff);
+double   bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b);
 
 /* calculate the AIF matrix */
 void     CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
