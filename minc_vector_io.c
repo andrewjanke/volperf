@@ -25,12 +25,13 @@ MINC_Vector *new_MINC_Vector(int size)
    }
 
 /* free a MINC Vector */
-Status  free_MINC_Vector(MINC_Vector *mv){
-   
+Status free_MINC_Vector(MINC_Vector * mv)
+{
+
    FREE(mv->V);
    FREE(mv);
-   
-   return(OK);
+
+   return (OK);
    }
 
 /* input a MINC Vector from a file */
@@ -98,14 +99,14 @@ Status input_MINC_Vector(char *input_file, MINC_Vector * mv)
 
    if(mni_skip_expected_character(file, (char)'=') != OK)
       return (ERROR);
-   
+
    /* input the data */
-   return(mni_input_reals(file, &mv->size, &mv->V));
+   return (mni_input_reals(file, &mv->size, &mv->V));
    }
 
-
 /* output a MINC Vector to a file */
-Status output_MINC_Vector(char *output_file, MINC_Vector * mv, char **comments, int clobber)
+Status output_MINC_Vector(char *output_file, MINC_Vector * mv, char **comments,
+                          int clobber)
 {
    int      i;
    FILE    *file;
@@ -167,7 +168,7 @@ Status output_MINC_Vector(char *output_file, MINC_Vector * mv, char **comments, 
          }
       status &= output_newline(file);
       }
-   
+
    fclose(file);
    return status;
    }

@@ -1,26 +1,69 @@
 /* perf_util.h */
 
-#include <volume_io.h>
-#include <voxel_loop.h>
+#ifndef PERF_UTIL_H
+#define PERF_UTIL_H
+
+#include <float.h>
+#include <math.h>
+
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
-/* #include <gsl/gsl_linalg.h> */
 #include <gsl/gsl_multimin.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_multifit.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_statistics_double.h>
+
+#include <volume_io.h>
+
+/************************************************************/
+
+typedef enum { SHIFT_AIF, SHIFT_AIF_EXACT, SHIFT_CONC, SHIFT_NONE,
+   SHIFT_NUM
+   } SHIFT_enum;
+extern char *SHIFT_names[];
+
+typedef enum { BAT_GAMMA, BAT_SLOPE, BAT_CUTOFF, BAT_NUM } BAT_enum;
+extern char *BAT_names[];
+
+typedef enum { GAM_BAT, GAM_FAC, GAM_ALPHA, GAM_BETA, GAM_NUM } GAMMA_enum;
+
+typedef enum { OUT_CBF, OUT_CBV, OUT_MTT, NUM_OUT_BASIC } OUT_BASIC_ENUM;
+extern char *outfile_basic[];
+
+typedef enum { OUT_CHI, NUM_OUT_CHI } OUT_CHI_ENUM;
+extern char *outfile_chi[];
+
+typedef enum { OUT_BAT, OUT_FAC, OUT_ALPHA, OUT_BETA, NUM_OUT_GAMMA } OUT_GAMMA_ENUM;
+extern char *outfile_gamma[];
+
+typedef enum { OUT_ARRIVAL, NUM_OUT_ARRIVAL } OUT_ARRIVAL_ENUM;
+extern char *outfile_arrival[];
+
+typedef enum { OUT_DELAY, NUM_OUT_DELAY } OUT_DELAY_ENUM;
+extern char *outfile_delay[];
+
+extern char outfile_residue[];
+
+/************************************************************/
 
 /* Structure for Art_IF information */
 typedef struct {
-   gsl_vector *AIF;
+   gsl_vector *signal;
+   gsl_vector *conc;
+   double   gparm[GAM_NUM];
    double   baseline;
    double   area;
    double   arrival_time;
-} Art_IF;
+   } Art_IF;
 
 /* Structure for math information */
 typedef struct {
+   /* arterial input function */
    Art_IF  *aif;
-   size_t   start_tpoint;
-   size_t   rem_tpoints;
+   int      aif_fit;
+   size_t   Nstart;
+   size_t   Nrest;
 
    /* kernel to filter with */
    gsl_vector *kernel;
@@ -30,22 +73,38 @@ typedef struct {
    gsl_matrix *svd_v;
    gsl_vector *svd_s;
    gsl_vector *svd_work;
+   double   svd_tol;
+
+   /* voxel concentration */
+   gsl_vector *signal;
+   gsl_vector *conc;
+   double   gparm[GAM_NUM];
+   gsl_vector *residue;
+   int      conc_fit;
+
+   /* tracer delay */
+   SHIFT_enum shift_type;
+   BAT_enum vox_bat_type;
+   double   vox_bat_cutoff;
 
    double   tr;
    double   te;
    int      filter;
-   double   svd_tol;
    double   cutoff;
-   int      calc_bat;
-} Math_Data;
+   double   area;
+   double   normalization;
+   double   dosage;
 
-/* voxel_loop function */
-void     do_math(void *caller_data, long num_voxels, int input_num_buffers, int input_vector_length,
-                 double *input_data[], int output_num_buffers, int output_vector_length,
-                 double *output_data[], Loop_Info * loop_info);
+   int      output_chi;
+   int      output_gamma;
+   int      output_arrival;
+   int      output_delay;
+   int      output_residue;
+   } Math_Data;
 
-/* reads an allocated Art_IF from a file (pointer) */
-Status   input_art_if(const char *aif_file, Art_IF * aif);
+/************************************************************/
+
+void     convolve_vector(gsl_vector * data, gsl_vector * kernel);
 
 /* convolves a vector using zero padding */
 void     convolve_vector_zero(gsl_vector * data, gsl_vector * kernel);
@@ -53,16 +112,30 @@ void     convolve_vector_zero(gsl_vector * data, gsl_vector * kernel);
 /* convolves a vector using averaging of end points */
 void     convolve_vector_avg(gsl_vector * data, gsl_vector * kernel);
 
-/* calculate the AIF matrix */
-void     calc_aif_matrix(Art_IF * aif, size_t start_tpoint, size_t rem_tpoints,
-                         double tr, double te, gsl_matrix * aif_m);
+gsl_vector *create_filter_kernel(void);
 
-/* calculate the area under a time curve */
-void time_curve_area(gsl_vector * tcurve, size_t start_tpoint, double tr,
-                     double *area, double *bat, int flg);
+/* reads an allocated Art_IF from a file (pointer) */
+Status   input_art_if(const char *aif_file, Art_IF * aif);
 
 /* debugging function to print a vector */
 void     print_vector(const char *name, gsl_vector * v);
+void     print_matrix(const char *name, gsl_matrix * m);
 
-/* setup the math data structure */
-void     setup_math_data(Math_Data ** md);
+void     SignalToConc(gsl_vector * s, gsl_vector * c, double baseline, double te);
+void     ConvertParm(const gsl_vector * v, double *gparm);
+void     eval_gamma(gsl_vector * v, double *gparm, double step);
+
+/*
+void fit_gamma(gsl_vector *log_conc, gsl_vector *t, double bat,
+ double *gamma, gsl_matrix *mwork, gsl_matrix *covwork,
+ gsl_multifit_linear_workspace *fwork);
+*/
+double   vector_distance(gsl_vector * a, gsl_vector * b);
+double   vector_sum(gsl_vector * v, int a, int b);
+double   bolus_arrival_time(gsl_vector * conc, double tr,
+                            double *gparm, BAT_enum bat_method, double cutoff);
+
+/* calculate the AIF matrix */
+void     CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest);
+
+#endif
