@@ -1,24 +1,28 @@
-/* volperf.c                                                                 */
-/*                                                                           */
-/* The MINC perfusion calculator                                             */
-/*                                                                           */
-/* Mark Griffin - mark.griffin@cmr.uq.edu.au                                 */
-/* Andrew Janke - rotor@cmr.uq.edu.au                                        */
-/* Center for Magnetic Resonance                                             */
-/* University of Queensland                                                  */
-/*                                                                           */
-/* Copyright Andrew Janke & Mark Griffin The University of Queensland.       */
-/* Permission to use, copy, modify, and distribute this software and its     */
-/* documentation for any purpose and without fee is hereby granted,          */
-/* provided that the above copyright notice appear in all copies.  The       */
-/* author and the University of Queensland make no representations about the */
-/* suitability of this software for any purpose.  It is provided "as is"     */
-/* without express or implied warranty.                                      */
-/*                                                                           */
-/* Thu Dec  6 22:33:12 EST 2001 - initial version (that didn't work)         */
-/* Wed Jul  3 15:59:46 EST 2002 - major revisions (to make it work)          */
-/* Mon Jul 28 18:15:24 EST 2003 - added bolus delay correction               */
+/* volperf.c                                                                  */
+/*                                                                            */
+/* The MINC Bolus Delay perfusion calculator                                  */
+/*                                                                            */
+/* Mark Griffin - mark.griffin@cmr.uq.edu.au                                  */
+/* Andrew Janke - rotor@cmr.uq.edu.au                                         */
+/* Center for Magnetic Resonance                                              */
+/* University of Queensland                                                   */
+/*                                                                            */
+/* Copyright (C) 2003 Andrew Janke and Mark Griffin                           */
+/* This program is free software; you can redistribute it and/or              */
+/* modify it under the terms of the GNU General Public License                */
+/* as published by the Free Software Foundation; either version 2             */
+/* of the License, or (at your option) any later version.                     */
+/*                                                                            */
+/* This program is distributed in the hope that it will be useful,            */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of             */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              */
+/* GNU General Public License for more details.                               */
+/*                                                                            */
+/* You should have received a copy of the GNU General Public License          */
+/* along with this program; if not, write to the Free Software                */
+/* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+#include <config.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -28,7 +32,6 @@
 #include <voxel_loop.h>
 
 #include "perf_util.h"
-#include "gamma_fit.h"
 
 #define DEFAULT_BOOL -1
 #define DEFAULT_DOUBLE -1
@@ -38,6 +41,7 @@
 void     do_math(void *caller_data, long num_voxels, int input_num_buffers,
                  int input_vector_length, double *input_data[], int output_num_buffers,
                  int output_vector_length, double *output_data[], Loop_Info * loop_info);
+void print_version_info(void);
 
 /************************************************************/
 char    *SHIFT_names[] = { "shift_none", "shift_aif", "shift_aif_exact", "shift_conc" };
@@ -71,15 +75,15 @@ SHIFT_enum shift_type = SHIFT_NONE;
 int      aif_bat_gamma = FALSE;
 int      aif_bat_slope = FALSE;
 double   aif_bat_cutoff = DEFAULT_DOUBLE;
-double   aif_bat_min_dist = DEFAULT_DOUBLE;
+int      aif_bat_min_dist = FALSE;
 int      vox_bat_gamma = FALSE;
 int      vox_bat_slope = FALSE;
 double   vox_bat_cutoff = DEFAULT_DOUBLE;
-double   vox_bat_min_dist = DEFAULT_DOUBLE;
+int      vox_bat_min_dist = FALSE;
 int      bat_gamma = FALSE;
 int      bat_slope = FALSE;
 double   bat_cutoff = DEFAULT_DOUBLE;
-double   bat_min_dist = DEFAULT_DOUBLE;
+int      bat_min_dist = FALSE;
 double   tr = DEFAULT_DOUBLE;
 double   te = DEFAULT_DOUBLE;
 int      filter = FALSE;
@@ -100,6 +104,8 @@ int      output_residue = FALSE;
 ArgvInfo argTable[] = {
    {NULL, ARGV_HELP, (char *)NULL, (char *)NULL,
     "General options:"},
+   {"-version", ARGV_FUNC, (char *)print_version_info, (char *)NULL,
+    "print version info and exit"},
    {"-verbose", ARGV_CONSTANT, (char *)TRUE, (char *)&verbose,
     "Print out extra information."},
    {"-quiet", ARGV_CONSTANT, (char *)TRUE, (char *)&quiet,
@@ -180,8 +186,8 @@ ArgvInfo argTable[] = {
     "The slope of the concentration profile"},
    {"-aif_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&aif_bat_cutoff,
     "A percentage of the peak concentration"},
-   {"-aif_bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&aif_bat_min_dist,
-    "The point closest to the intersection of the baseline and <scaled> vertical line from the peak"},
+   {"-aif_bat_min_dist", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_min_dist,
+    "The point closest to the intersection of the baseline and a vertical line from the peak"},
 
    {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nVoxel BAT/delay types (pick one):"},
    {"-vox_bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&vox_bat_gamma,
@@ -190,8 +196,8 @@ ArgvInfo argTable[] = {
     "The slope of the concentration profile"},
    {"-vox_bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&vox_bat_cutoff,
     "A percentage of the peak concentration"},
-   {"-aif_bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&aif_bat_min_dist,
-    "The point closest to the intersection of the baseline and <scaled> vertical line from the peak"},
+   {"-aif_bat_min_dist", ARGV_CONSTANT, (char *)TRUE, (char *)&aif_bat_min_dist,
+    "The point closest to the intersection of the baseline and a vertical line from the peak"},
 
    {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nBoth BAT/delay types (pick one):"},
    {"-bat_gamma", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_gamma,
@@ -200,7 +206,7 @@ ArgvInfo argTable[] = {
     "Synonym for '-aif_bat_slope -vox_bat_slope'"},
    {"-bat_cutoff", ARGV_FLOAT, (char *)1, (char *)&bat_cutoff,
     "Synonym for '-aif_bat_cutoff -vox_bat_cutoff'"},
-   {"-bat_min_dist", ARGV_FLOAT, (char *)1, (char *)&bat_min_dist,
+   {"-bat_min_dist", ARGV_CONSTANT, (char *)TRUE, (char *)&bat_min_dist,
     "Synonym for '-aif_bat_min_dist -vox_bat_min_dist'"},
 
    {NULL, ARGV_HELP, (char *)NULL, (char *)NULL, "\nPerfusion parameters:"},
@@ -308,26 +314,22 @@ int main(int argc, char *argv[])
 /*
  *	check the arrival time measures
  */
-   n_bat =
-      (bat_gamma + bat_slope + (bat_cutoff != DEFAULT_DOUBLE) +
-       (bat_min_dist != DEFAULT_DOUBLE));
+   n_bat = bat_gamma + bat_slope + (bat_cutoff != DEFAULT_DOUBLE) + bat_min_dist;
    if(n_bat > 1){
       fprintf(stdout,
               "%s: Only one arrival method required for aif and voxel\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
-   n_aif_bat =
-      (aif_bat_gamma + aif_bat_slope + (aif_bat_cutoff != DEFAULT_DOUBLE) +
-       (aif_bat_min_dist != DEFAULT_DOUBLE));
+   n_aif_bat = aif_bat_gamma + aif_bat_slope +
+      (aif_bat_cutoff != DEFAULT_DOUBLE) + aif_bat_min_dist;
    if(n_aif_bat > 1){
       fprintf(stdout, "%s: Only one arrival method required for aif\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
-   n_vox_bat =
-      (vox_bat_gamma + vox_bat_slope + (vox_bat_cutoff != DEFAULT_DOUBLE) +
-       (aif_bat_min_dist != DEFAULT_DOUBLE));
+   n_vox_bat = vox_bat_gamma + vox_bat_slope + (vox_bat_cutoff != DEFAULT_DOUBLE) +
+      aif_bat_min_dist;
    if(n_vox_bat > 1){
       fprintf(stdout, "%s: Only one arrival method required for voxel\n", argv[0]);
       exit(EXIT_FAILURE);
@@ -367,9 +369,8 @@ int main(int argc, char *argv[])
       md->aif->bat.type = md->vox_bat.type = BAT_CUTOFF;
       md->aif->bat.cutoff = md->vox_bat.cutoff = bat_cutoff;
       }
-   else if(bat_min_dist != DEFAULT_DOUBLE){
+   else if(bat_min_dist){
       md->aif->bat.type = md->vox_bat.type = BAT_MIN_DIST;
-      md->aif->bat.min_dist = md->vox_bat.min_dist = bat_min_dist;
       }
    else {
       md->aif->bat.type = md->vox_bat.type = BAT_GAMMA;
@@ -384,7 +385,7 @@ int main(int argc, char *argv[])
    else if(aif_bat_cutoff != DEFAULT_DOUBLE){
       md->aif->bat.type = BAT_CUTOFF;
       }
-   else if(aif_bat_min_dist != DEFAULT_DOUBLE){
+   else if(aif_bat_min_dist){
       md->aif->bat.type = BAT_MIN_DIST;
       }
 
@@ -398,9 +399,8 @@ int main(int argc, char *argv[])
       md->vox_bat.type = BAT_CUTOFF;
       md->vox_bat.cutoff = vox_bat_cutoff;
       }
-   else if(vox_bat_min_dist != DEFAULT_DOUBLE){
+   else if(vox_bat_min_dist){
       md->vox_bat.type = BAT_MIN_DIST;
-      md->vox_bat.min_dist = vox_bat_min_dist;
       }
 
    /* check ranges */
@@ -412,15 +412,6 @@ int main(int argc, char *argv[])
    if(md->vox_bat.type == BAT_CUTOFF &&
       (md->vox_bat.cutoff > 1.0 || md->vox_bat.cutoff < 0.0)){
       fprintf(stdout, "%s: Voxel arrival cutoffs must be between 0 and 1\n", argv[0]);
-      exit(EXIT_FAILURE);
-      }
-   if(md->aif->bat.type == BAT_MIN_DIST && (md->aif->bat.min_dist <= 0.0)){
-      fprintf(stdout, "%s: AIF arrival scale factor should be greater than 0\n", argv[0]);
-      exit(EXIT_FAILURE);
-      }
-   if(md->vox_bat.type == BAT_MIN_DIST && (md->vox_bat.min_dist <= 0.0)){
-      fprintf(stdout,
-              "%s: Voxel arrival scale factor should be greater than 0\n", argv[0]);
       exit(EXIT_FAILURE);
       }
 
@@ -595,7 +586,6 @@ int main(int argc, char *argv[])
       fprintf(stdout, "|    ->area:          %g\n", md->aif->area);
       fprintf(stdout, "|    ->bat.type       %s\n", BAT_names[md->aif->bat.type]);
       fprintf(stdout, "|         .cutoff:    %g\n", md->aif->bat.cutoff);
-      fprintf(stdout, "|         .min_dist:  %g\n", md->aif->bat.min_dist);
       fprintf(stdout, "|    ->arrival_time:  %g\n", md->aif->arrival_time);
 
       fprintf(stdout, "|    ->signal[%d]     ", md->aif->signal->size);
@@ -628,7 +618,6 @@ int main(int argc, char *argv[])
       fprintf(stdout, "| shift_type:         %s\n", SHIFT_names[md->shift_type]);
       fprintf(stdout, "| voxel bat.type      %s\n", BAT_names[md->vox_bat.type]);
       fprintf(stdout, "|          .cutoff:   %g\n", md->vox_bat.cutoff);
-      fprintf(stdout, "|          .min_dist: %g\n", md->vox_bat.min_dist);
 
       fprintf(stdout, "| TR:                 %g\n", md->tr);
       fprintf(stdout, "| TE:                 %g\n", md->te);
@@ -758,7 +747,8 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
    Math_Data *md = (Math_Data *) caller_data;
    gsl_vector_view view;
    gsl_vector *conc, *aif;
-   size_t   i, n_outputs;
+   size_t   n_outputs;
+   int      i;
    long     ivox, Nivox;
    double   raw_baseline, raw_avg;
    double   arrival, delay, temp;
@@ -889,13 +879,20 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             arrival = bolus_arrival_time(md->conc, md->tr, &(md->vox_bat));
             delay = arrival - md->aif->arrival_time;
             delayi = rint(delay / md->tr);
-            length = md->conc->size - delayi;
 
-            if((delayi > 0) && (delayi < length)){
-               for(i = 0; i < length; i++){
+            if(delayi < 0){
+               for(i = md->conc->size - 1; i >= -delayi; i--){
                   gsl_vector_set(md->conc, i, gsl_vector_get(md->conc, i + delayi));
                   }
-               for(i = length; i < md->conc->size; i++){
+               for(i = -delayi - 1; i >= 0; i--){
+                  gsl_vector_set(md->conc, i, 0.0);
+                  }
+               }
+            else if(delayi > 0){
+               for(i = 0; i < md->conc->size - delayi; i++){
+                  gsl_vector_set(md->conc, i, gsl_vector_get(md->conc, i + delayi));
+                  }
+               for(i = md->conc->size - delayi; i < md->conc->size; i++){
                   gsl_vector_set(md->conc, i, 0.0);
                   }
                }
@@ -1006,14 +1003,20 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
             n_outputs += NUM_OUT_GAMMA;
             }
 
+/*
+ *	CRC delay and residue calculation
+ */
          if(md->shift_type == SHIFT_CIRC){
             residue_shift = gsl_vector_max_index(md->residue);
+
             delay = residue_shift * md->tr;
-            if(delay > md->length / 2.0){
-               delay -= md->length;
+            if(delay > (md->length * md->tr) / 2.0){
+               delay -= md->length * md->tr;
                }
+
             arrival = delay + md->aif->arrival_time;
             }
+
          else {
             residue_shift = 0;
             }
@@ -1061,4 +1064,13 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
       }
 
    return;
+   }
+
+void print_version_info(void)
+{
+   fprintf(stdout, "\n");
+   fprintf(stdout, "%s version %s\n", PACKAGE, VERSION);
+   fprintf(stdout, "Comments to %s\n", PACKAGE_BUGREPORT);
+   fprintf(stdout, "\n");
+   exit(EXIT_SUCCESS);
    }

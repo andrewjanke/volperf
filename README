@@ -1,0 +1,11 @@
+volperf
+
+WHATS HERE:
+   * volperf      - computes Perfusion maps from an input AIF and associated raw data
+
+WHAT YOU'LL NEED:
+   * The minc and netcdf libraries - http://www.bic.mni.mcgill.ca/software/
+   * The GSL library
+
+HOW TO USE IT:
+   * volperf -help        for more information
