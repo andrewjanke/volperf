@@ -507,135 +507,135 @@ gint glarea_graph_draw(GtkWidget *widget, GdkEventExpose * event, gpointer func_
 int load_maps(Main_Info * mi)
 {
 
-   Math_Data *md;
-   int      c;
-   double   min, max;
-
-   double   tr = 1.995;
-   double   te = 0.06;
-   int      filter = TRUE;
-   double   svd_tol = 0.2;
-   double   cutoff = 0.4;
-   int      start_tpoint = 6;
-
-   int      chunk_size = 1000;
-   int      chunk_voxels;
-   int      c_voxel;
-   long     num_voxels = mi->sizes[0] * mi->sizes[1];
-
-   double  *data_ptr[100];
-   double  *map_ptr[5];
-
-   /* set up the Math_Data structure */
-   md = (Math_Data *) malloc(sizeof(Math_Data));
-
-   /* AIF */
-   md->aif = (Art_IF *) malloc(sizeof(Art_IF));
-   md->aif->AIF = gsl_vector_alloc(mi->n_infiles);
-   for(c = 0; c < mi->n_infiles; c++){
-      gsl_vector_set(md->aif->AIF, c, mi->t_vector->V[c]);
-      }
-
-   md->tr = tr;
-   md->te = te;
-   md->filter = filter;
-   md->svd_tol = svd_tol;
-   md->cutoff = cutoff;
-   md->output_chi = FALSE;
-   md->output_transit = FALSE;
-   md->start_tpoint = (size_t) start_tpoint;
-   md->rem_tpoints = md->aif->AIF->size - md->start_tpoint;
-
-   /* setup the math_data struct */
-   setup_math_data(&md);
-
-   fprintf(stdout, "About to calc maps\n");
-
-   /* calculate the maps */
-   c_voxel = 0;
-   while (c_voxel < num_voxels){
-
-      /* set up data_ptr array */
-      for(c = 0; c < 100; c++){
-         data_ptr[c] = &(mi->data[c][c_voxel]);
-         }
-
-      /* set up map_ptr array */
-      for(c = 0; c < 5; c++){
-         map_ptr[c] = &(mi->maps[c][c_voxel]);
-         }
-
-      /* set up the number of voxels in this chunk */
-      chunk_voxels = (c_voxel + chunk_size < num_voxels) ? chunk_size : num_voxels - c_voxel;
-
-      do_math((void *)md, chunk_voxels,
-              mi->n_infiles, 1, data_ptr, 5, 1, map_ptr, (Loop_Info *) NULL);
-
-      /* update progressbar */
-      gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar),
-                                  (double)c_voxel / (double)num_voxels);
-
-      /* let GTK+ do a few things */
-      while (g_main_iteration(FALSE)) ;
-
-      c_voxel += chunk_size;
-      }
-
-   /* finish up */
-   gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar), 1.0);
-
-   /* rescale the results - CBF */
-   min = 1000000000;
-   max = -1000000000;
-   for(c = 0; c < num_voxels; c++){
-      if(mi->maps[1][c] < min){
-         min = mi->maps[1][c];
-         }
-      if(mi->maps[1][c] > max){
-         max = mi->maps[1][c];
-         }
-      }
-
-   /* rescale the data */
-   for(c = 0; c < num_voxels; c++){
-      mi->CBF_image[c] = (unsigned char)((mi->maps[1][c] - min) / (max - min) * 255);
-      }
-
-   /* rescale the results - CBV */
-   min = 1000000000;
-   max = -1000000000;
-   for(c = 0; c < num_voxels; c++){
-      if(mi->maps[2][c] < min){
-         min = mi->maps[2][c];
-         }
-      if(mi->maps[2][c] > max){
-         max = mi->maps[2][c];
-         }
-      }
-
-   /* rescale the data */
-   for(c = 0; c < num_voxels; c++){
-      mi->CBV_image[c] = (unsigned char)((mi->maps[2][c] - min) / (max - min) * 255);
-      }
-
-   /* rescale the results - MTT */
-   min = 1000000000;
-   max = -1000000000;
-   for(c = 0; c < num_voxels; c++){
-      if(mi->maps[3][c] < min){
-         min = mi->maps[3][c];
-         }
-      if(mi->maps[3][c] > max){
-         max = mi->maps[3][c];
-         }
-      }
-
-   /* rescale the data */
-   for(c = 0; c < num_voxels; c++){
-      mi->MTT_image[c] = (unsigned char)((mi->maps[3][c] - min) / (max - min) * 255);
-      }
-
-   fprintf(stdout, "MAPS LOADED\n");
+//    Math_Data *md;
+//    int      c;
+//    double   min, max;
+// 
+//    double   tr = 1.995;
+//    double   te = 0.06;
+//    int      filter = TRUE;
+//    double   svd_tol = 0.2;
+//    double   cutoff = 0.4;
+//    int      start_tpoint = 6;
+// 
+//    int      chunk_size = 1000;
+//    int      chunk_voxels;
+//    int      c_voxel;
+//    long     num_voxels = mi->sizes[0] * mi->sizes[1];
+// 
+//    double  *data_ptr[MAX_NUM_FILES];
+//    double  *map_ptr[5];
+// 
+//    /* set up the Math_Data structure */
+//    md = (Math_Data *) malloc(sizeof(Math_Data));
+// 
+//    /* AIF */
+//    md->aif = (Art_IF *) malloc(sizeof(Art_IF));
+//    md->aif->AIF = gsl_vector_alloc(mi->n_infiles);
+//    for(c = 0; c < mi->n_infiles; c++){
+//       gsl_vector_set(md->aif->AIF, c, mi->t_vector->V[c]);
+//       }
+// 
+//    md->tr = tr;
+//    md->te = te;
+//    md->filter = filter;
+//    md->svd_tol = svd_tol;
+//    md->cutoff = cutoff;
+//    md->output_chi = FALSE;
+//    md->output_transit = FALSE;
+//    md->start_tpoint = (size_t) start_tpoint;
+//    md->rem_tpoints = md->aif->AIF->size - md->start_tpoint;
+// 
+//    /* setup the math_data struct */
+//    setup_math_data(&md);
+// 
+//    fprintf(stdout, "About to calc maps\n");
+// 
+//    /* calculate the maps */
+//    c_voxel = 0;
+//    while (c_voxel < num_voxels){
+// 
+//       /* set up data_ptr array */
+//       for(c = 0; c < MAX_NUM_FILES; c++){
+//          data_ptr[c] = &(mi->data[c][c_voxel]);
+//          }
+// 
+//       /* set up map_ptr array */
+//       for(c = 0; c < 5; c++){
+//          map_ptr[c] = &(mi->maps[c][c_voxel]);
+//          }
+// 
+//       /* set up the number of voxels in this chunk */
+//       chunk_voxels = (c_voxel + chunk_size < num_voxels) ? chunk_size : num_voxels - c_voxel;
+// 
+//       do_math((void *)md, chunk_voxels,
+//               mi->n_infiles, 1, data_ptr, 5, 1, map_ptr, (Loop_Info *) NULL);
+// 
+//       /* update progressbar */
+//       gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar),
+//                                   (double)c_voxel / (double)num_voxels);
+// 
+//       /* let GTK+ do a few things */
+//       while (g_main_iteration(FALSE)) ;
+// 
+//       c_voxel += chunk_size;
+//       }
+// 
+//    /* finish up */
+//    gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar), 1.0);
+// 
+//    /* rescale the results - CBF */
+//    min = 1000000000;
+//    max = -1000000000;
+//    for(c = 0; c < num_voxels; c++){
+//       if(mi->maps[1][c] < min){
+//          min = mi->maps[1][c];
+//          }
+//       if(mi->maps[1][c] > max){
+//          max = mi->maps[1][c];
+//          }
+//       }
+// 
+//    /* rescale the data */
+//    for(c = 0; c < num_voxels; c++){
+//       mi->CBF_image[c] = (unsigned char)((mi->maps[1][c] - min) / (max - min) * 255);
+//       }
+// 
+//    /* rescale the results - CBV */
+//    min = 1000000000;
+//    max = -1000000000;
+//    for(c = 0; c < num_voxels; c++){
+//       if(mi->maps[2][c] < min){
+//          min = mi->maps[2][c];
+//          }
+//       if(mi->maps[2][c] > max){
+//          max = mi->maps[2][c];
+//          }
+//       }
+// 
+//    /* rescale the data */
+//    for(c = 0; c < num_voxels; c++){
+//       mi->CBV_image[c] = (unsigned char)((mi->maps[2][c] - min) / (max - min) * 255);
+//       }
+// 
+//    /* rescale the results - MTT */
+//    min = 1000000000;
+//    max = -1000000000;
+//    for(c = 0; c < num_voxels; c++){
+//       if(mi->maps[3][c] < min){
+//          min = mi->maps[3][c];
+//          }
+//       if(mi->maps[3][c] > max){
+//          max = mi->maps[3][c];
+//          }
+//       }
+// 
+//    /* rescale the data */
+//    for(c = 0; c < num_voxels; c++){
+//       mi->MTT_image[c] = (unsigned char)((mi->maps[3][c] - min) / (max - min) * 255);
+//       }
+// 
+//    fprintf(stdout, "MAPS LOADED\n");
    return 1;
    }
 

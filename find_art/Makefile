@@ -11,11 +11,17 @@ CC = gcc
 
 OPTIONS = -g -O3 -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations
 
-INCLUDES = `gsl-config --cflags` `gtk-config --cflags`
+INCLUDES = -I/usr/local/mni/include \
+`gsl-config --cflags` \
+`gtk-config --cflags` \
+-I/home/rotor/opt/include
 
-LDINCLUDES = `gsl-config --libs` `gtk-config --libs`
+LDINCLUDES = -L/usr/local/mni/lib \
+`gsl-config --libs` \
+`gtk-config --libs` \
+-L/home/rotor/opt/linux_lib
 
-LDLIBS = -lgtkgl -lGL -lGLU -lvolume_io -lminc -lnetcdf -lm
+LDLIBS = -lgtkgl -lGL -lGLU -lpthread -lvolume_io -lminc -lnetcdf -lm
 
 LDOPTS = $(LDINCLUDES) $(LDLIBS)
 CFLAGS = $(OPTIONS) $(INCLUDES)
