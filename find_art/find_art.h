@@ -5,11 +5,18 @@
 
 #define VERSION "find_art 1.0"
 
+#define MAX_NUM_FILES 1000
+
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include <gtkgl/gdkgl.h>
 #include <gtkgl/gtkglarea.h>
 #include <volume_io.h>
+
+#undef X
+#undef Y
+#undef Z
+
 #include "../minc_vector_io.h"
 
 typedef struct {
@@ -69,16 +76,16 @@ typedef struct {
    double   c_point[2];
 
    /* minc info */
-   int      minc_id[100];
-   int      img_id[100];
-   int      icv[100];
+   int      minc_id[MAX_NUM_FILES];
+   int      img_id[MAX_NUM_FILES];
+   int      icv[MAX_NUM_FILES];
    Real     steps[MAX_VAR_DIMS];
    int      sizes[MAX_VAR_DIMS];
-   Real     data_min[100];
-   Real     data_max[100];
-   Real     calc_min[100];
-   Real     calc_max[100];
-   double  *data[100];
+   Real     data_min[MAX_NUM_FILES];
+   Real     data_max[MAX_NUM_FILES];
+   Real     calc_min[MAX_NUM_FILES];
+   Real     calc_max[MAX_NUM_FILES];
+   double  *data[MAX_NUM_FILES];
    
    /* data stores */
    MINC_Vector *t_vector;
