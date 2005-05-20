@@ -41,7 +41,7 @@
 void     do_math(void *caller_data, long num_voxels, int input_num_buffers,
                  int input_vector_length, double *input_data[], int output_num_buffers,
                  int output_vector_length, double *output_data[], Loop_Info * loop_info);
-void print_version_info(void);
+void     print_version_info(void);
 
 /************************************************************/
 char    *SHIFT_names[] = { "shift_none", "shift_aif", "shift_aif_exact", "shift_conc" };
@@ -707,28 +707,45 @@ int main(int argc, char *argv[])
 /* 
  *	be tidy 
  */
-   if((md->shift_type == SHIFT_CONC) || (md->shift_type == SHIFT_NONE)
-      || md->shift_type == SHIFT_CIRC){
+   gsl_vector_free(md->aif->signal);
+   gsl_vector_free(md->aif->conc);
+
+   switch (md->shift_type){
+   case SHIFT_NONE:
+   case SHIFT_CONC:
       gsl_matrix_free(md->svd_u);
       gsl_matrix_free(md->svd_v);
       gsl_vector_free(md->svd_s);
-      if(md->shift_type == SHIFT_CIRC){
-         gsl_vector_free(md->svd_s_cp);
-         }
       gsl_vector_free(md->svd_work);
-      gsl_vector_free(md->conc);
       gsl_vector_free(md->residue);
+      gsl_vector_free(md->signal);
+      gsl_vector_free(md->conc);
+      break;
+
+   case SHIFT_AIF:
+   case SHIFT_AIF_EXACT:
+      gsl_vector_free(md->signal);
+      gsl_vector_free(md->conc);
+      break;
+
+   case SHIFT_CIRC:
+      gsl_matrix_free(md->svd_u);
+      gsl_matrix_free(md->svd_v);
+      gsl_vector_free(md->svd_s);
+      gsl_vector_free(md->svd_s_cp);
+      gsl_vector_free(md->svd_work);
+      gsl_vector_free(md->residue);
+      gsl_vector_free(md->signal);
+      gsl_vector_free(md->conc);
+      break;
       }
+
    free(infiles);
    for(i = 0; i < n_outfiles; i++){
       free(outfiles[i]);
       }
    free(outfiles);
    free_loop_options(loop_opts);
-   gsl_vector_free(md->conc);
-   gsl_vector_free(md->signal);
-   gsl_vector_free(md->aif->signal);
-   gsl_vector_free(md->aif->conc);
    free(md->aif);
    free(md);
 

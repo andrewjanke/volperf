@@ -16,6 +16,10 @@
 
 #include <volume_io.h>
 
+#undef X
+#undef Y
+#undef Z
+
 #define SQR(x) ((x) * (x))
 
 /************************************************************/

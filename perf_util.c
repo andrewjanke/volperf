@@ -398,7 +398,7 @@ double bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b)
    
    /* see the attached jpg to understand what the heck is going on here (min_dist.jpg) */
    case BAT_MIN_DIST:
-
+      
       /* get the x and y co-ordinate of the peak */
       peakx = gsl_vector_max_index(conc);
       
@@ -413,12 +413,10 @@ double bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b)
       
          /* get the half-width of the peak */
          i = peakx;
-         while(i > 0 && gsl_vector_get(conc, i) > peaky /2){
+         while(i > 0 && gsl_vector_get(conc, i) > peaky / 2){
             i--;
             }
-         m1 = gsl_vector_get(conc, i+1) - gsl_vector_get(conc, i);
-         c1 = gsl_vector_get(conc, i) - (m1 * i);
-         width = peakx - (((peaky/2) - c1)/m1);
+         width = peakx - i;
       
          /* get the scale */
          scale = peaky / width * 2;
@@ -445,30 +443,39 @@ double bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b)
                minb = i;
                }
             }
-      
-         /* make sure the points are ordered */
-         if(mina > minb){
-            tmp = minb;
-            minb = mina;
-            mina = tmp;
+         
+         /* sanity check */
+         if(mina == minb){
+            arrival = 0;
             }
          
-         /* find the closest point on the line mina:minb to our point */
-         m1 = (gsl_vector_get(conc, mina) - gsl_vector_get(conc, minb))
-            / (mina - minb) * scale;
-         c1 = (gsl_vector_get(conc, mina) / scale) - (m1 * mina);
-         m2 = -1 / m1;
-         c2 = -peaky - (m1 * peakx);
-         arrival = (c2 - c1) / (m1 - m2);
-
-         /* check that we aren't out of bounds */
-         if(arrival < mina){
-            arrival = mina;
+         else{
+      
+            /* make sure the points are ordered */
+            if(mina > minb){
+               tmp = minb;
+               minb = mina;
+               mina = tmp;
+               }
+            
+            /* find the closest point on the line mina:minb to our point */
+            m1 = (gsl_vector_get(conc, mina) - gsl_vector_get(conc, minb))
+               / (mina - minb) * scale;
+          
+            c1 = (gsl_vector_get(conc, mina) / scale) - (m1 * mina);
+            m2 = -1 / m1;
+            c2 = -peaky - (m1 * peakx);
+            arrival = (c2 - c1) / (m1 - m2);
+          
+            /* check that we aren't out of bounds */
+            if(arrival < mina){
+               arrival = mina;
+              }
+            else if(arrival > minb){
+               arrival = minb;
+               }
             }
-         else if(arrival > minb){
-            arrival = minb;
-            }
-
+   
          /* scale arrival index to the time-series */
          arrival *= tr;
          }
