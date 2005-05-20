@@ -1,6 +1,7 @@
 /* minc_vector_io.c */
 
 #include "minc_vector_io.h"
+#include <volume_io.h>
 
 #define MINC_VECTOR_CHUNK_SIZE 20
 
@@ -25,7 +26,7 @@ MINC_Vector *new_MINC_Vector(int size)
    }
 
 /* free a MINC Vector */
-Status free_MINC_Vector(MINC_Vector * mv)
+int free_MINC_Vector(MINC_Vector * mv)
 {
 
    FREE(mv->V);
@@ -35,7 +36,7 @@ Status free_MINC_Vector(MINC_Vector * mv)
    }
 
 /* input a MINC Vector from a file */
-Status input_MINC_Vector(char *input_file, MINC_Vector * mv)
+int input_MINC_Vector(char *input_file, MINC_Vector * mv)
 {
    STRING   line;
    STRING   type_name;
@@ -105,7 +106,7 @@ Status input_MINC_Vector(char *input_file, MINC_Vector * mv)
    }
 
 /* output a MINC Vector to a file */
-Status output_MINC_Vector(char *output_file, MINC_Vector * mv, char **comments,
+int output_MINC_Vector(char *output_file, MINC_Vector * mv, char **comments,
                           int clobber)
 {
    int      i;
