@@ -1,3 +1,6 @@
+2006-03-01 Andrew L Janke <a.janke@gmail.com>
+	* fixed up find_art so that it will compile and run more easily
+
 2004-06-03 Andrew L. Janke  <rotor@cmr.uq.edu.au>
 
    * Added autoconfiguration 
