@@ -47,29 +47,27 @@ void push_statusbar(Main_Info *mi, char *buf)
 
    }
 
-/* toolbar buttons */
-void     on_calc_button_clicked(GtkButton * button, gpointer user_data){
-   Main_Info *mi = (Main_Info*)user_data;
-   
-   gchar    buf[128];
-   
-   /* calc perfusion maps */
- 
-   g_snprintf(buf, 128, "Calculating maps for AIF[%g:%g]", mi->c_point[0], mi->c_point[1]);
-   push_statusbar(mi, buf);
- 
-   if(load_maps(mi)){
-      gtk_widget_queue_draw(GTK_WIDGET(mi->w.CBV_gtk_glarea));
-      gtk_widget_queue_draw(GTK_WIDGET(mi->w.CBF_gtk_glarea));
-      gtk_widget_queue_draw(GTK_WIDGET(mi->w.MTT_gtk_glarea));
-      }
-   
-   }
-
 void     on_save_button_clicked(GtkButton * button, gpointer user_data){
-   Main_Info *mi = (Main_Info*)user_data;
+   Main_Info *mi = get_main_info_ptr();
+   char *comments[3];
+   char *buf;
+   gchar status_text[128];
    
-   output_vector_file(mi, mi->aif_file, mi->t_vector);
+   buf = (char*)malloc(sizeof(char)*128);
+   g_snprintf(buf, 128, "AIF Point (xyz voxel): [%g:%g:%g]", 
+                   mi->c_point[0], 
+                   mi->c_point[1], 
+                   mi->c_slice);
+   
+   comments[0] = mi->arg_string;
+   comments[1] = buf;
+   comments[2] = NULL;
+   output_MINC_Vector(mi->aif_file, mi->t_vector, comments, TRUE);
+   
+   g_snprintf(status_text, 128, "Output AIF to %s", mi->aif_file);
+   push_statusbar(mi, status_text);
+   
+   free(buf);
    }
 
 void     on_quit_button_clicked(GtkButton * button, gpointer user_data){

@@ -13,13 +13,11 @@ OPTIONS = -g -O3 -Wall -Wunused -Wmissing-prototypes -Wmissing-declarations
 
 INCLUDES = -I/usr/local/mni/include \
 `gsl-config --cflags` \
-`gtk-config --cflags` \
--I/home/rotor/opt/include
+`gtk-config --cflags`
 
 LDINCLUDES = -L/usr/local/mni/lib \
 `gsl-config --libs` \
-`gtk-config --libs` \
--L/home/rotor/opt/linux_lib
+`gtk-config --libs`
 
 LDLIBS = -lgtkgl -lGL -lGLU -lpthread -lvolume_io -lminc -lnetcdf -lm
 
@@ -37,4 +35,3 @@ $(PROGS): $(OBJS)
         
 clean:
 	rm -f *.o *~ $(PROGS)
-
