@@ -19,7 +19,6 @@ gint     glarea_button_release(GtkWidget *, GdkEventButton *, gpointer func_data
 
 gint     glarea_slice_draw(GtkWidget *, GdkEventExpose *, gpointer func_data);
 gint     glarea_graph_draw(GtkWidget *, GdkEventExpose *, gpointer func_data);
-gint     glarea_map_draw(GtkWidget *, GdkEventExpose *, gpointer func_data);
 gint     glarea_reshape(GtkWidget *, GdkEventConfigure *, gpointer func_data);
 
 GtkWidget *create_slice_glarea(Main_Info * mi)
@@ -132,7 +131,6 @@ GtkWidget *create_map_glarea(Map_Data * md)
    /* Check out gdk/gdktypes.h in your include directory for a */
    /* complete list of event masks that you can use.           */
    gtk_widget_set_events(GTK_WIDGET(glarea), GDK_EXPOSURE_MASK);
-   gtk_signal_connect(GTK_OBJECT(glarea), "expose_event", GTK_SIGNAL_FUNC(glarea_map_draw), md);
    gtk_signal_connect(GTK_OBJECT(glarea), "configure_event", GTK_SIGNAL_FUNC(glarea_reshape), NULL);
 
    return (glarea);
@@ -280,7 +278,6 @@ gint glarea_button_release(GtkWidget *widget, GdkEventButton * event, gpointer f
 {
    Main_Info *mi = (Main_Info *) func_data;
    int      x, y;
-   gchar    buf[128];
 
    x = event->x / mi->scale_fac;
    y = (widget->allocation.height - event->y) / mi->scale_fac;
@@ -289,11 +286,6 @@ gint glarea_button_release(GtkWidget *widget, GdkEventButton * event, gpointer f
 
       mi->roi[2] = x;
       mi->roi[3] = y;
-
-//      g_snprintf(buf, 128, "Best point [%d:%d]", x, y);
-//      push_statusbar(mi, buf);
-//    calcART(mi, dim, roi,imageseq,pts);
-
 
       gtk_widget_queue_draw(GTK_WIDGET(mi->w.slice_gtk_glarea));
       gtk_widget_queue_draw(GTK_WIDGET(mi->w.graph_gtk_glarea));
@@ -324,13 +316,9 @@ int load_image(Main_Info * mi)
 
    /* rescale the data */
    for(c = 0; c < mi->sizes[0] * mi->sizes[1]; c++){
-      mi->CBF_image[c] = mi->image_data[c] =
+      mi->image_data[c] =
          (unsigned char)((mi->data[c_frame][c] - min) / (max - min) * 255);
       }
-
-//   fprintf(stdout, "Min: %g  Max: %g   (%g:%g)\n", min, max, 
-//                   mi->data_min[mi->c_frame], 
-//                   mi->data_max[mi->c_frame]);
 
    return 1;
    }
@@ -502,181 +490,6 @@ gint glarea_graph_draw(GtkWidget *widget, GdkEventExpose * event, gpointer func_
       }
 
    return (TRUE);
-   }
-
-int load_maps(Main_Info * mi)
-{
-
-//    Math_Data *md;
-//    int      c;
-//    double   min, max;
-// 
-//    double   tr = 1.995;
-//    double   te = 0.06;
-//    int      filter = TRUE;
-//    double   svd_tol = 0.2;
-//    double   cutoff = 0.4;
-//    int      start_tpoint = 6;
-// 
-//    int      chunk_size = 1000;
-//    int      chunk_voxels;
-//    int      c_voxel;
-//    long     num_voxels = mi->sizes[0] * mi->sizes[1];
-// 
-//    double  *data_ptr[MAX_NUM_FILES];
-//    double  *map_ptr[5];
-// 
-//    /* set up the Math_Data structure */
-//    md = (Math_Data *) malloc(sizeof(Math_Data));
-// 
-//    /* AIF */
-//    md->aif = (Art_IF *) malloc(sizeof(Art_IF));
-//    md->aif->AIF = gsl_vector_alloc(mi->n_infiles);
-//    for(c = 0; c < mi->n_infiles; c++){
-//       gsl_vector_set(md->aif->AIF, c, mi->t_vector->V[c]);
-//       }
-// 
-//    md->tr = tr;
-//    md->te = te;
-//    md->filter = filter;
-//    md->svd_tol = svd_tol;
-//    md->cutoff = cutoff;
-//    md->output_chi = FALSE;
-//    md->output_transit = FALSE;
-//    md->start_tpoint = (size_t) start_tpoint;
-//    md->rem_tpoints = md->aif->AIF->size - md->start_tpoint;
-// 
-//    /* setup the math_data struct */
-//    setup_math_data(&md);
-// 
-//    fprintf(stdout, "About to calc maps\n");
-// 
-//    /* calculate the maps */
-//    c_voxel = 0;
-//    while (c_voxel < num_voxels){
-// 
-//       /* set up data_ptr array */
-//       for(c = 0; c < MAX_NUM_FILES; c++){
-//          data_ptr[c] = &(mi->data[c][c_voxel]);
-//          }
-// 
-//       /* set up map_ptr array */
-//       for(c = 0; c < 5; c++){
-//          map_ptr[c] = &(mi->maps[c][c_voxel]);
-//          }
-// 
-//       /* set up the number of voxels in this chunk */
-//       chunk_voxels = (c_voxel + chunk_size < num_voxels) ? chunk_size : num_voxels - c_voxel;
-// 
-//       do_math((void *)md, chunk_voxels,
-//               mi->n_infiles, 1, data_ptr, 5, 1, map_ptr, (Loop_Info *) NULL);
-// 
-//       /* update progressbar */
-//       gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar),
-//                                   (double)c_voxel / (double)num_voxels);
-// 
-//       /* let GTK+ do a few things */
-//       while (g_main_iteration(FALSE)) ;
-// 
-//       c_voxel += chunk_size;
-//       }
-// 
-//    /* finish up */
-//    gtk_progress_set_percentage(GTK_PROGRESS(mi->w.progressbar), 1.0);
-// 
-//    /* rescale the results - CBF */
-//    min = 1000000000;
-//    max = -1000000000;
-//    for(c = 0; c < num_voxels; c++){
-//       if(mi->maps[1][c] < min){
-//          min = mi->maps[1][c];
-//          }
-//       if(mi->maps[1][c] > max){
-//          max = mi->maps[1][c];
-//          }
-//       }
-// 
-//    /* rescale the data */
-//    for(c = 0; c < num_voxels; c++){
-//       mi->CBF_image[c] = (unsigned char)((mi->maps[1][c] - min) / (max - min) * 255);
-//       }
-// 
-//    /* rescale the results - CBV */
-//    min = 1000000000;
-//    max = -1000000000;
-//    for(c = 0; c < num_voxels; c++){
-//       if(mi->maps[2][c] < min){
-//          min = mi->maps[2][c];
-//          }
-//       if(mi->maps[2][c] > max){
-//          max = mi->maps[2][c];
-//          }
-//       }
-// 
-//    /* rescale the data */
-//    for(c = 0; c < num_voxels; c++){
-//       mi->CBV_image[c] = (unsigned char)((mi->maps[2][c] - min) / (max - min) * 255);
-//       }
-// 
-//    /* rescale the results - MTT */
-//    min = 1000000000;
-//    max = -1000000000;
-//    for(c = 0; c < num_voxels; c++){
-//       if(mi->maps[3][c] < min){
-//          min = mi->maps[3][c];
-//          }
-//       if(mi->maps[3][c] > max){
-//          max = mi->maps[3][c];
-//          }
-//       }
-// 
-//    /* rescale the data */
-//    for(c = 0; c < num_voxels; c++){
-//       mi->MTT_image[c] = (unsigned char)((mi->maps[3][c] - min) / (max - min) * 255);
-//       }
-// 
-//    fprintf(stdout, "MAPS LOADED\n");
-   return 1;
-   }
-
-/* map window draw function */
-gint glarea_map_draw(GtkWidget *widget, GdkEventExpose * event, gpointer func_data)
-{
-   Map_Data *md = (Map_Data *) func_data;
-
-   double   scale_fac[2];
-
-   /* Draw only on the last expose event. */
-   if(event->count > 0){
-      return TRUE;
-      }
-
-   if(gtk_gl_area_make_current(GTK_GL_AREA(widget))){
-
-      /* calculate scale factor */
-      scale_fac[0] = (double)widget->allocation.width / (double)(*md->xsize);
-      scale_fac[1] = (double)widget->allocation.height / (double)(*md->ysize);
-
-      /* make the image square */
-      if(scale_fac[0] > scale_fac[1]){
-         scale_fac[0] = scale_fac[1];
-         }
-      else{
-         scale_fac[1] = scale_fac[0];
-         }
-
-      glClearColor(0.0, 0.0, 0.0, 1.0);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glRasterPos2f(0.0, 0.0);
-      glPixelZoom(scale_fac[0], scale_fac[1]);
-      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-      glDrawPixels(*md->xsize, *md->ysize, GL_LUMINANCE, GL_UNSIGNED_BYTE, *md->data);
-
-      gtk_gl_area_swap_buffers(GTK_GL_AREA(widget));
-      }
-
-   return TRUE;
    }
 
 

@@ -17,9 +17,10 @@
 #include "interface.h"
 
 
+Main_Info *mi;
+
 int main(int argc, char *argv[])
 {
-   Main_Info *mi = (Main_Info *) malloc(sizeof(Main_Info));
    int      c, i;
 
    volume_input_struct input_info;
@@ -29,6 +30,9 @@ int main(int argc, char *argv[])
    Real     tmp_steps[MAX_VAR_DIMS];
    int      tmp_sizes[MAX_VAR_DIMS];
 
+   /* alloc space for main info struct */
+   mi = (Main_Info *) malloc(sizeof(Main_Info));
+   
    /* Argument variables and table */
    mi->verbose = FALSE;
    mi->clobber = FALSE;
@@ -54,7 +58,7 @@ int main(int argc, char *argv[])
       {NULL, ARGV_HELP, NULL, NULL, ""},
       {NULL, ARGV_END, NULL, NULL, NULL}
    };
-
+   
    /* Save time stamp and args */
    mi->arg_string = time_stamp(argc, argv);
 
@@ -138,14 +142,6 @@ int main(int argc, char *argv[])
 
    /* calloc space for image data */
    mi->image_data = calloc(mi->sizes[0] * mi->sizes[1], sizeof(unsigned char));
-   mi->CBF_image = calloc(mi->sizes[0] * mi->sizes[1], sizeof(unsigned char));
-   mi->CBV_image = calloc(mi->sizes[0] * mi->sizes[1], sizeof(unsigned char));
-   mi->MTT_image = calloc(mi->sizes[0] * mi->sizes[1], sizeof(unsigned char));
-   
-   /* calloc space for maps */
-   for(i=0; i<5; i++){
-      mi->maps[i] = calloc(mi->sizes[0] * mi->sizes[1], sizeof(double));
-      }
 
    /* check a few args */
    if(mi->c_frame > (double)mi->n_infiles - 1){
@@ -253,21 +249,7 @@ int load_minc_data(int slice, Main_Info * mi)
    return TRUE;
    }
 
-/* currently this outputs a vector type file */
-void output_vector_file(Main_Info *mi, char *filename, MINC_Vector *mv){
-   char *comments[2];
-   char *buf;
-   
-   buf = (char*)malloc(sizeof(char)*128);
-   g_snprintf(buf, 128, "AIF Point (xyz voxel): [%g:%g:%g]", 
-                   mi->c_point[0], 
-                   mi->c_point[1], 
-                   mi->c_slice);
-   
-   comments[0] = mi->arg_string;
-   comments[1] = buf;
-   
-   output_MINC_Vector(filename, mv, comments, TRUE);
-   
-   free(buf);
+
+Main_Info *get_main_info_ptr(void){
+   return(mi);
    }
