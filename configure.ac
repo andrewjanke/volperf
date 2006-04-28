@@ -2,7 +2,7 @@
 AC_PREREQ([2.57])
 
 # The arguments are package name, and package version.
-AC_INIT([volperf],[1.0],[Andrew Janke <rotor@cmr.uq.edu.au>])
+AC_INIT([volperf],[1.0.1],[Andrew Janke <rotor@cmr.uq.edu.au>])
 AC_CONFIG_SRCDIR([volperf.c])
 
 AM_INIT_AUTOMAKE
