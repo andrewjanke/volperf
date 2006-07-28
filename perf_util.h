@@ -63,12 +63,12 @@ typedef struct {
    /* arterial input function */
    Art_IF  *aif;
    int      aif_fit;
-   size_t   Nstart;
-   size_t   Nrest;
-   size_t   length;
+   int   Nstart;
+   int   Nrest;
+   int   length;
 
    /* number of input data files */
-   size_t   n_datafiles;
+   int   n_datafiles;
 
    /* mask information */
    int      mask;
@@ -126,7 +126,7 @@ void     convolve_vector_avg(gsl_vector * data, gsl_vector * kernel);
 gsl_vector *create_filter_kernel(void);
 
 /* reads an allocated Art_IF from a file (pointer) */
-Status   input_art_if(const char *aif_file, Art_IF * aif);
+Status   input_art_if(char *aif_file, Art_IF * aif);
 
 /* debugging function to print a vector */
 void     print_vector(const char *name, gsl_vector * v);

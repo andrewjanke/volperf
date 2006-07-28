@@ -25,8 +25,8 @@ void     gamma_fdf_aif(const gsl_vector * x, void *params, double *f, gsl_vector
 void convolve_vector(gsl_vector * data, gsl_vector * kernel)
 {
    gsl_vector *tmp;
-   size_t   half_ks;
-   size_t   i;
+   int   half_ks;
+   int   i;
    int      j;
 
    if((kernel->size % 2) == 0){
@@ -67,9 +67,9 @@ void convolve_vector_zero(gsl_vector * data, gsl_vector * kernel)
 /* convolves a vector using averaging of end points */
 void convolve_vector_avg(gsl_vector * data, gsl_vector * kernel)
 {
-   size_t   half_ks;
+   int   half_ks;
    double   sum0, sum1;
-   size_t   i;
+   int   i;
 
 /* 
  *	calc avg value for ends 
@@ -130,7 +130,7 @@ gsl_vector *create_filter_kernel(void)
 /* 
  *	reads in a Art_IF from a file
  */
-Status input_art_if(const char *aif_file, Art_IF * aif)
+Status input_art_if(char *aif_file, Art_IF * aif)
 {
    MINC_Vector *tmp;
    Status   status;
@@ -158,7 +158,7 @@ Status input_art_if(const char *aif_file, Art_IF * aif)
 
 void print_vector(const char *name, gsl_vector * v)
 {
-   size_t   i;
+   int   i;
 
    fprintf(stdout, "%s[%d]: ", name, v->size);
    for(i = 0; i < v->size; i++){
@@ -171,7 +171,7 @@ void print_vector(const char *name, gsl_vector * v)
 
 void print_matrix(const char *name, gsl_matrix * m)
 {
-   size_t   i, j;
+   int   i, j;
 
    fprintf(stdout, "%s[%d,%d]:\n", name, m->size1, m->size2);
    for(i = 0; i < m->size1; i++){
@@ -500,7 +500,7 @@ double bolus_arrival_time(gsl_vector * conc, double tr, Bat_info * b)
 void CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest)
 {
    double   temp;
-   size_t   i, j;
+   int   i, j;
 
 /* 
  *	diagonal elements 
@@ -537,7 +537,7 @@ void CalcAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int N
 void CalcCircAifMatrix(gsl_vector * v, gsl_matrix * m, double fac, int Nstart, int Nrest)
 {
    double   temp;
-   size_t   i, j;
+   int   i, j;
 
 /* 
  *	Ca(t0)
@@ -811,7 +811,7 @@ void gamma_fdf_aif(const gsl_vector * x, void *params, double *f, gsl_vector * d
 void gamma_df(const gsl_vector * v, void *params, gsl_vector * df)
 {
    Gamma_Struct *p = (Gamma_Struct *) params;
-   size_t   i;
+   int   i;
    double   fit_i, t;
    double   gparm[GAM_NUM];
    double   bat, fac, alpha, beta;

@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
    char    *arg_string;
    Loop_Options *loop_opts;
    double   fac;
-   size_t   i, j;
+   int   i, j;
    int      n_bat, n_aif_bat, n_vox_bat;
    Math_Data *md;
 
@@ -463,7 +463,7 @@ int main(int argc, char *argv[])
 
    /* set up infiles */
    n_infiles = argc - 2;
-   md->n_datafiles = (size_t) n_infiles;
+   md->n_datafiles = n_infiles;
 
    if(md->mask){
       md->mask_idx = n_infiles;
@@ -523,44 +523,44 @@ int main(int argc, char *argv[])
       fprintf(stdout, "\n==== Outfiles ====\n");
       }
    j = 0;
-   for(i = 0; i < (size_t) (nbasic); i++){
+   for(i = 0; i < nbasic; i++){
       outfiles[j] = (char *)malloc(sizeof(char)
                                    * (strlen(outbase) + strlen(outfile_basic[i]) + 5));
       sprintf(outfiles[j], "%s.%s.mnc", outbase, outfile_basic[i]);
       j++;
       }
-   for(i = 0; i < (size_t) (nchi); i++){
+   for(i = 0; i < nchi; i++){
       outfiles[j] = (char *)malloc(sizeof(char)
                                    * (strlen(outbase) + strlen(outfile_chi[i]) + 5));
       sprintf(outfiles[j], "%s.%s.mnc", outbase, outfile_chi[i]);
       j++;
       }
-   for(i = 0; i < (size_t) (ngamma); i++){
+   for(i = 0; i < ngamma; i++){
       outfiles[j] = (char *)malloc(sizeof(char)
                                    * (strlen(outbase) + strlen(outfile_gamma[i]) + 5));
       sprintf(outfiles[j], "%s.%s.mnc", outbase, outfile_gamma[i]);
       j++;
       }
-   for(i = 0; i < (size_t) (narrival); i++){
+   for(i = 0; i < narrival; i++){
       outfiles[j] = (char *)malloc(sizeof(char)
                                    * (strlen(outbase) + strlen(outfile_arrival[i]) + 5));
       sprintf(outfiles[j], "%s.%s.mnc", outbase, outfile_arrival[i]);
       j++;
       }
-   for(i = 0; i < (size_t) (ndelay); i++){
+   for(i = 0; i < ndelay; i++){
       outfiles[j] = (char *)malloc(sizeof(char)
                                    * (strlen(outbase) + strlen(outfile_delay[i]) + 5));
       sprintf(outfiles[j], "%s.%s.mnc", outbase, outfile_delay[i]);
       j++;
       }
    if(output_residue){
-      for(i = 0; (i < (size_t) (10)) && (i < (size_t) (nresidue)); i++){
+      for(i = 0; (i < 10) && (i < nresidue); i++){
          outfiles[j] = (char *)malloc(sizeof(char)
                                       * (strlen(outbase) + strlen(outfile_residue) + 8));
          sprintf(outfiles[j], "%s.%s0%d.mnc", outbase, outfile_residue, i);
          j++;
          }
-      for(i = 10; i < (size_t) (nresidue); i++){
+      for(i = 10; i < nresidue; i++){
          outfiles[j] = (char *)malloc(sizeof(char)
                                       * (strlen(outbase) + strlen(outfile_residue) + 8));
          sprintf(outfiles[j], "%s.%s%d.mnc", outbase, outfile_residue, i);
@@ -764,7 +764,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
    Math_Data *md = (Math_Data *) caller_data;
    gsl_vector_view view;
    gsl_vector *conc, *aif;
-   size_t   n_outputs;
+   int   n_outputs;
    int      i;
    long     ivox, Nivox;
    double   raw_baseline, raw_avg;
@@ -785,7 +785,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
 
       /* skip voxels out of the mask region */
       if(md->mask && !(int)input_data[md->mask_idx][ivox]){
-         for(i = 0; i < (size_t) output_num_buffers; i++){
+         for(i = 0; i < output_num_buffers; i++){
             output_data[i][ivox] = 0.0;
             }
          continue;
@@ -813,7 +813,7 @@ void do_math(void *caller_data, long num_voxels, int input_num_buffers,
  *	check if we have an abberant timeseries 
  */
       if((raw_baseline <= 0) || (raw_avg / md->aif->baseline < md->cutoff)){
-         for(i = 0; i < (size_t) output_num_buffers; i++){
+         for(i = 0; i < output_num_buffers; i++){
             output_data[i][ivox] = 0.0;
             }
          }
