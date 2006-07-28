@@ -1,3 +1,7 @@
+        New in Release 1.0.2
+
+* fixed a bunch of type conversions that would cause trouble on 64 bit systems
+
         New in Release 1.0.1
 
 * Simply repackage the tar ball with good m4 files for minc2
